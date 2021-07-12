@@ -70,6 +70,51 @@ Create a Volume Group with multiple Physical Volumes::
       - vg: 'vg_multi'
         pvs: [ '/dev/sdb', '/dev/sdc' ]
 
+.. _lvm__thin_pools:
+
+lvm__thin_pools
+------------------
+
+This is a list of LVM Thin Pools, each one defined as a YAML dict. A LVM Thin Pool
+is related with LVM Thin Logical Volumes. Each LVM Thin Pool LV contains blocks of
+physical storage, which will be referenced by LVM Thin Logical Volumes. Dict
+parameters are mapped to ``lvol`` Ansible module options.
+
+List of required parameters:
+
+``vg``
+  Name of a Volume Group which should be used to create a given Logical Volume.
+
+``thinpool``
+  Name of a LVM Thin Pool, should only have alphanumeric characters and
+  underscores. Do not use hyphens (``-``) in the name.
+
+``size``
+  Size of the LVM Thin Pool, use the same format as these supported by
+  ``lvol`` Ansible module.
+
+List of optional LVM parameters:
+
+``opts``
+  Free-form options to be passed to the :command:`lvcreate` command.
+
+Create a LVM Thin Pool::
+
+    lvm__thin_pools:
+
+      - vg: 'vg_alpha'
+        thinpool: 'pool0'
+        size: '1T'
+
+Create a LVM Thin Pool with custom size of metadata volume::
+
+    lvm__thin_pools:
+
+      - vg: 'vg_alpha'
+        thinpool: 'pool0'
+        size: '1T'
+        opts: '--poolmetadatasize 16G'
+
 .. _lvm__logical_volumes:
 
 lvm__logical_volumes
@@ -91,9 +136,14 @@ List of required parameters:
 
 ``size``
   Size of the Logical Volume, use the same format as these supported by
-  ``lvol`` Ansible module.
+  ``lvol`` Ansible module. Relative values like ``100%FREE`` are not supported,
+  if a LVM Thin Logical Volume should be created.
 
 List of optional LVM parameters:
+
+``thinpool``
+  Specifies the underlying LVM Thin Pool. Using this option, the Logical Volume
+  will be created as a LVM Thin Logical Volume.
 
 ``state``
   Specifies if a Logical Volume should exist (``present``) or not (``absent``).
@@ -101,6 +151,9 @@ List of optional LVM parameters:
 ``force``
   Boolean. If present and ``True`` allows ``lvol`` module to shrink or remove
   Logical Volumes.
+
+``opts``
+  Free-form options to be passed to the :command:`lvcreate` command.
 
 List of optional filesystem parameters:
 
@@ -195,3 +248,11 @@ Resize a mounted Logical Volume::
         fs_type: 'ext4'
         fs_resizefs: True
 
+Create a Thin Logical Volume::
+
+    lvm__logical_volumes:
+
+      - lv: 'not_formatted_volume'
+        vg: 'vg_alpha'
+        thinpool: 'pool0'
+        size: '50G'

@@ -163,7 +163,7 @@
   when: lxc__net_deploy_state == 'present'
   tags: [ 'role::lxc:net' ]
 
-- name: Hook lxc-net-reslvconf script to the lxc-net service
+- name: Hook lxc-net-resolvconf script to the lxc-net service
   template:
     src: 'etc/systemd/system/lxc-net.service.d/resolvconf.conf.j2'
     dest: '/etc/systemd/system/lxc-net.service.d/resolvconf.conf'
@@ -187,6 +187,22 @@
           lxc__register_systemd_overrides_create|d({}) is changed or
           lxc__register_systemd_overrides_remove|d({}) is changed))
   tags: [ 'role::lxc:net', 'role::lxc:dnsmasq' ]
+
+- name: Remove default SSH keys for root in containers if none are defined
+  file:
+    path: '/etc/lxc/root_authorized_keys'
+    state: 'absent'
+  when: not lxc__default_container_ssh_root_sshkeys|d()
+
+- name: Define default SSH keys for root account in containers
+  authorized_key:
+    key: "{{ lxc__default_container_ssh_root_sshkeys | join('\n') }}"
+    path: '/etc/lxc/root_authorized_keys'
+    manage_dir: False
+    user: 'root'
+    state: 'present'
+    exclusive: True
+  when: lxc__default_container_ssh_root_sshkeys|d()
 
 - name: Remove LXC configuration if requested
   file:
@@ -336,7 +352,7 @@
         item.state|d("started") == "started"
   tags: [ 'role::lxc:containers' ]
 
-- name: Include fstab parameter in LXC container configuration
+- name: Include fstab parameter in LXC container configuration for lxc<4.0
   lineinfile:
     path: '/var/lib/lxc/{{ item.name | d(item) }}/config'
     regexp: '^lxc\.mount\s+=\s+'
@@ -347,7 +363,23 @@
   loop: '{{ lxc__containers }}'
   when: ansible_local|d() and ansible_local.lxc|d() and
         (item.name | d(item)) not in ansible_local.lxc.containers|d() and
-        item.state|d("started") == "started" and item.fstab|d()
+        item.state|d("started") == "started" and item.fstab|d() and
+        lxc__version is version("4.0", operator="lt", strict=True)
+  tags: [ 'role::lxc:containers' ]
+
+- name: Include fstab parameter in LXC container configuration for lxc>=4.0
+  lineinfile:
+    path: '/var/lib/lxc/{{ item.name | d(item) }}/config'
+    regexp: '^lxc\.mount\.fstab\s+=\s+'
+    line: 'lxc.mount.fstab = /var/lib/lxc/{{ item.name | d(item) }}/fstab'
+    insertafter: '^lxc\.rootfs\.backend\s+=\s+'
+    state: 'present'
+    mode: '0644'
+  loop: '{{ lxc__containers }}'
+  when: ansible_local|d() and ansible_local.lxc|d() and
+        (item.name | d(item)) not in ansible_local.lxc.containers|d() and
+        item.state|d("started") == "started" and item.fstab|d() and
+        lxc__version is version("4.0", operator=">=", strict=True)
   tags: [ 'role::lxc:containers' ]
 
 - name: Create custom fstab files for LXC containers

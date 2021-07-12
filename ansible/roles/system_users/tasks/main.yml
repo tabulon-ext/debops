@@ -15,19 +15,8 @@
   import_role:
     name: 'secret'
 
-- name: Gather local facts
-  setup:
-    filter: ansible_python_version
-    gather_subset: '!all'
-  delegate_to: 'localhost'
-  delegate_facts: True
-  become: False
-  run_once: True
-
 - name: Gather local Ansible user details
-  script: 'script/getent_passwd.py{{ "2" if (hostvars["localhost"]["ansible_python_version"]
-                                             is version_compare("3.5", "<"))
-                                     else "3" }} {{ system_users__self_name }}'
+  script: 'script/getent_passwd.py3 {{ system_users__self_name }}'
   register: system_users__register_passwd
   delegate_to: 'localhost'
   become: False
@@ -91,7 +80,7 @@
     shell:              '{{ item.shell              | d(system_users__default_shell
                                                         if system_users__default_shell|d()
                                                         else omit) }}'
-    createhome:         '{{ item.createhome         | d(omit) }}'
+    create_home:        '{{ item.create_home        | d(omit) }}'
     move_home:          '{{ item.move_home          | d(omit) }}'
     skeleton:           '{{ item.skeleton           | d(omit) }}'
     expires:            '{{ item.expires            | d(omit) }}'
@@ -282,8 +271,10 @@
   tags: [ 'role::system_users:forward', 'skip::system_users:forward', 'skip::check' ]
 
 - name: Manage system users dotfiles
+  environment:
+    LC_MESSAGES: 'C'
   shell: |
-    if ! [ -e "$HOME/.yadm/repo.git" ] ; then
+    if ! yadm status > /dev/null ; then
         yadm clone --bootstrap "{{ item.dotfiles_repo | d(system_users__dotfiles_repo) }}"
     else
         yadm pull

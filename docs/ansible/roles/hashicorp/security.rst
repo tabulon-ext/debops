@@ -70,19 +70,21 @@ key used by HashiCorp_ is:
 
 .. code-block:: none
 
-   91A6 E7F8 5D05 C656 30BE F189 5185 2D87 348F FC4C
+   C874 011F 0AB4 0511 0D02 1055 3436 5D94 72D7 468F
 
 The HashiCorp_ OpenPGP key is published on the keybase.io_ website, on the
 `hashicorp account <https://keybase.io/hashicorp>`_. The key is tracked by
 several other users of the site.
 
-The HashiCorp_ OpenPGP key is published in the `SKS OpenPGP keyserver pool`_
+The HashiCorp_ OpenPGP key is published in the `Ubuntu keyserver`__
 and can be imported from there using the :command:`gpg` command:
 
 .. code-block:: console
 
-   user@host:~$ gpg --keyserver hkp://pool.sks-keyservers.net \
-                    --recv-key 91A6E7F85D05C65630BEF18951852D87348FFC4C
+   user@host:~$ gpg --keyserver hkp://keyserver.ubuntu.com \
+                    --recv-key C874011F0AB405110D02105534365D9472D7468F
+
+.. __: https://keyserver.ubuntu.com/
 
 
 Software installation procedure
@@ -102,7 +104,7 @@ another Ansible role:
   installation.
 
 - The ``hashicorp`` user account imports the HashiCorp_ OpenPGP key from the
-  OpenPGP keyserver network, by default using one of the SHS Keyservers.
+  OpenPGP keyserver.
 
 - The ``hashicorp`` user account downloads the necessary files from the
   HashiCorp_ release page over the HTTPS protocol. These files include: binary
