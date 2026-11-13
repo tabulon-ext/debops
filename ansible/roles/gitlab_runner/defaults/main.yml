@@ -36,7 +36,7 @@ gitlab_runner__apt_key: 'F6403F6544A38863DAA0B6E03F01618A51312F3F'
 # .. envvar:: gitlab_runner__apt_repo [[[
 #
 # APT ``sources.list`` configuration of the upstream GitLab Runner repository.
-gitlab_runner__apt_repo: 'deb https://packages.gitlab.com/runner/gitlab-runner/{{ ansible_distribution | lower }}/ {{ ansible_distribution_release }} main'
+gitlab_runner__apt_repo: 'deb [signed-by=/etc/apt/keyrings/gitlab.asc] https://packages.gitlab.com/runner/gitlab-runner/{{ ansible_distribution | lower }}/ {{ ansible_distribution_release }} main'
 
                                                                    # ]]]
 # .. envvar:: gitlab_runner__base_packages [[[
@@ -44,10 +44,10 @@ gitlab_runner__apt_repo: 'deb https://packages.gitlab.com/runner/gitlab-runner/{
 # List of APT packages which will be installed by the role.
 gitlab_runner__base_packages:
   - 'gitlab-runner'
-  - '{{ [ "vagrant-libvirt", "libguestfs-tools", "busybox", "patch" ]
-        if gitlab_runner__vagrant_libvirt|bool
+  - '{{ ["vagrant-libvirt", "libguestfs-tools", "busybox", "patch"]
+        if gitlab_runner__vagrant_libvirt | bool
         else [] }}'
-  - '{{ "vagrant-lxc" if gitlab_runner__vagrant_lxc|bool else [] }}'
+  - '{{ "vagrant-lxc" if gitlab_runner__vagrant_lxc | bool else [] }}'
 
                                                                    # ]]]
 # .. envvar:: gitlab_runner__packages [[[
@@ -119,9 +119,9 @@ gitlab_runner__shell: '/bin/bash'
 #
 # Global number of jobs that can run concurrently on all configured runners.
 gitlab_runner__concurrent: '{{ ansible_processor_vcpus
-                               if (ansible_local|d() and
-                                   ansible_local.docker_server|d() and
-                                   (ansible_local.docker_server.installed|d()) | bool)
+                               if (ansible_local | d() and
+                                   ansible_local.docker_server | d() and
+                                   (ansible_local.docker_server.installed | d()) | bool)
                                else "1" }}'
 
                                                                    # ]]]
@@ -139,11 +139,17 @@ gitlab_runner__fqdn: '{{ ansible_fqdn }}'
                                                                    # ]]]
 # .. envvar:: gitlab_runner__gitlab_srv_rr [[[
 #
-# List which contains the result of the :command:`dig` query for Gitlab server
-# ``SRV`` resource records in the host's domain. See :rfc:`6186` for details.
-gitlab_runner__gitlab_srv_rr: '{{ q("dig", "_gitlab._tcp."
-                                    + gitlab_runner__domain
-                                    + "./SRV", "flat=0") }}'
+# List which contains the result of the DNS query for Gitlab server ``SRV``
+# resource records in the host's domain. See :rfc:`2782` for details.
+#
+# If there are no resource records, the role checks if a local Gitlab
+# installation is present and uses the host FQDN as the Gitlab API server
+# address. Finally, ``code.<domain>`` is used as a fallback.
+gitlab_runner__gitlab_srv_rr: '{{ q("debops.debops.dig_srv", "_gitlab._tcp." + gitlab_runner__domain,
+                                    ansible_fqdn
+                                    if (ansible_local | d() and ansible_local.gitlab | d() and
+                                       (ansible_local.gitlab.installed | d()) | bool)
+                                    else ("code." + gitlab_runner__domain), 443) }}'
 
                                                                    # ]]]
 # .. envvar:: gitlab_runner__api_fqdn [[[
@@ -151,22 +157,9 @@ gitlab_runner__gitlab_srv_rr: '{{ q("dig", "_gitlab._tcp."
 # The Fully Qualified Domain Name (FQDN) of the GitLab CI host which will control the
 # runner operation.
 #
-# By default the host is located using DNS SRV resource records; if there are none,
-# role checks if a local Gitlab installation is present and uses the host FQDN as
-# the Gitlab API server address. Finally, the static ``code.<domain>`` is used.
-#
-# Use of FQDN instead of ``localhost`` is required for X.509 certificate
-# verification and for correct information in system logs.
-gitlab_runner__api_fqdn: '{{ (gitlab_runner__gitlab_srv_rr | selectattr("target", "defined")
-                              | map(attribute="target")
-                              | map("regex_replace", "\.$","")
-                              | list | first)
-                              if ("NXDOMAIN" not in gitlab_runner__gitlab_srv_rr and
-                                  gitlab_runner__gitlab_srv_rr[0])
-                              else (ansible_fqdn
-                                    if (ansible_local|d() and ansible_local.gitlab|d() and
-                                       (ansible_local.gitlab.installed|d())|bool)
-                                    else ("code." + gitlab_runner__domain)) }}'
+# The use of the FQDN instead of ``localhost`` is required for X.509
+# certificate verification and for correct information in system logs.
+gitlab_runner__api_fqdn: '{{ gitlab_runner__gitlab_srv_rr[0]["target"] }}'
 
                                                                    # ]]]
 # .. envvar:: gitlab_runner__api_url [[[
@@ -178,24 +171,38 @@ gitlab_runner__api_url: 'https://{{ gitlab_runner__api_fqdn }}/'
                                                                    # ]]]
 # .. envvar:: gitlab_runner__api_token [[[
 #
-# The personal GitLab API access token used for API operations, for example
-# removal of existing Runners. This is not a Runner registration token. You can
-# generate an access token in GitLab "User Settings", "Access Tokens"
+# The personal GitLab API access token used to register or remove the runners in GitLab.
+# You can generate an access token in GitLab "User Settings", "Access Tokens"
 # configuration page.
-gitlab_runner__api_token: ''
+gitlab_runner__api_token: '{{ lookup("env", "GITLAB_API_TOKEN") }}'
+
+                                                                   # ]]]
+# .. envvar:: gitlab_runner__runner_type [[[
+#
+# The scope of the runner.
+# It can be one of the following values: ``instance_type``,
+# ``group_type`` or ``project_type``
+gitlab_runner__runner_type: 'instance_type'
+
+                                                                   # ]]]
+# .. envvar:: gitlab_runner__group_id [[[
+#
+# The ID of the group that the runner is created in.
+# Required if ``gitlab_runner__runner_type`` is ``group_type``.
+gitlab_runner__group_id: ~
+
+                                                                   # ]]]
+# .. envvar:: gitlab_runner__project_id [[[
+#
+# The ID of the project that the runner is created in.
+# Required if ``gitlab_runner__runner_type`` is ``project_type``.
+gitlab_runner__project_id: ~
 
                                                                    # ]]]
 # .. envvar:: gitlab_runner__executor [[[
 #
 # Default "executor" used by the runners.
 gitlab_runner__executor: 'shell'
-
-                                                                   # ]]]
-# .. envvar:: gitlab_runner__token [[[
-#
-# The GitLab CI registration token used to register the runners in GitLab.
-# See :ref:`gitlab_runner__token` for more details.
-gitlab_runner__token: '{{ lookup("env", "GITLAB_RUNNER_TOKEN") }}'
 
                                                                    # ]]]
 # .. envvar:: gitlab_runner__metrics_server [[[
@@ -279,16 +286,16 @@ gitlab_runner__default_instances:
     executor: 'shell'
     run_untagged: False
     state: '{{ "absent"
-               if (ansible_local|d() and ansible_local.docker_server|d() and
-                   (ansible_local.docker_server.installed|d()) | bool)
+               if (ansible_local | d() and ansible_local.docker_server | d() and
+                   (ansible_local.docker_server.installed | d()) | bool)
                else "present" }}'
 
   - name: '{{ ansible_hostname + "-docker" }}'
     executor: 'docker'
     tags: [ 'docker' ]
     state: '{{ "present"
-               if (ansible_local|d() and ansible_local.docker_server|d() and
-                   (ansible_local.docker_server.installed|d()) | bool)
+               if (ansible_local | d() and ansible_local.docker_server | d() and
+                   (ansible_local.docker_server.installed | d()) | bool)
                else "absent" }}'
 
   - name: '{{ ansible_hostname + "-docker-root" }}'
@@ -298,8 +305,8 @@ gitlab_runner__default_instances:
     run_untagged: False
     tags: [ 'docker-privileged' ]
     state: '{{ "present"
-               if (ansible_local|d() and ansible_local.docker_server|d() and
-                   (ansible_local.docker_server.installed|d()) | bool)
+               if (ansible_local | d() and ansible_local.docker_server | d() and
+                   (ansible_local.docker_server.installed | d()) | bool)
                else "absent" }}'
 
                                                                    # ]]]
@@ -363,10 +370,10 @@ gitlab_runner__host_custom_files: []
 # Enabling Vagrant libvirt will add the ``gitlab-runner`` UNIX account to the
 # ``libvirt`` and ``kvm`` UNIX groups, required for libvirt access by Vagrant.
 gitlab_runner__vagrant_libvirt: '{{ True
-                                    if (ansible_local|d() and ansible_local.libvirtd|d() and
-                                        (ansible_local.libvirtd.installed|d())|bool and
+                                    if (ansible_local | d() and ansible_local.libvirtd | d() and
+                                        (ansible_local.libvirtd.installed | d()) | bool and
                                         (ansible_distribution_release not in
-                                         [ "wheezy", "jessie", "precise", "trusty" ]))
+                                         ["trusty"]))
                                     else False }}'
 
                                                                    # ]]]
@@ -376,7 +383,9 @@ gitlab_runner__vagrant_libvirt: '{{ True
 # keys that prevent interaction with Vagrant VMs.
 # See the patch file in :file:`files/patches/` directory for more details.
 gitlab_runner__vagrant_libvirt_patch: '{{ True
-                                          if (gitlab_runner__vagrant_libvirt|bool)
+                                          if (gitlab_runner__vagrant_libvirt | bool and
+                                              ansible_distribution_release in
+                                              ["stretch", "buster"])
                                           else False }}'
 
                                                                    # ]]]
@@ -396,10 +405,10 @@ gitlab_runner__vagrant_libvirt_patch_state: 'present'
 # host). Enabling Vagrant LXC will give limited :command:`sudo` access for the
 # GitLab Runner UNIX account to allow access to LXC commands.
 gitlab_runner__vagrant_lxc: '{{ True
-                                if (ansible_local|d() and ansible_local.lxc|d() and
-                                    (ansible_local.lxc.installed|d())|bool and
+                                if (ansible_local | d() and ansible_local.lxc | d() and
+                                    (ansible_local.lxc.installed | d()) | bool and
                                     (ansible_distribution_release not in
-                                     [ "wheezy", "jessie", "precise", "trusty" ]))
+                                     ["trusty"]))
                                 else False }}'
                                                                    # ]]]
                                                                    # ]]]
@@ -424,7 +433,7 @@ gitlab_runner__ssh_generate_bits: '4096'
 #
 # List of hosts which should have the ``gitlab-runner`` SSH key installed using
 # a ``delegate_to`` Ansible mechanism and ``authorized_key`` module. Ansible
-# will use connection informations available in inventory to reach hosts. Each entry
+# will use connection information available in inventory to reach hosts. Each entry
 # is a dictionary with keys:
 #
 # - ``host``: the host address, it should be accessible to Ansible Controller
@@ -731,8 +740,9 @@ gitlab_runner__run_untagged: True
 gitlab_runner__keyring__dependent_apt_keys:
 
   - id: '{{ gitlab_runner__apt_key }}'
+    keyring: 'gitlab.asc'
     repo: '{{ gitlab_runner__apt_repo }}'
-    state: '{{ "present" if gitlab_runner__apt_upstream|bool else "absent" }}'
+    state: '{{ "present" if gitlab_runner__apt_upstream | bool else "absent" }}'
                                                                    # ]]]
                                                                    # ]]]
                                                                    # ]]]

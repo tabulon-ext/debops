@@ -16,6 +16,77 @@ them.
       :depth: 1
 
 
+.. _keyring__ref_dependent_apt_auth_files:
+
+keyring__dependent_apt_auth_files
+---------------------------------
+
+The :envvar:`keyring__dependent_apt_auth_files` list can be used to create and
+manage :file:`/etc/apt/auth.conf.d/` configuration files which caontain
+authentication credentials required by specific APT repositories. The format
+and more details about these files can be found in :man:`apt_auth.conf(5)`
+manual page. The :ref:`debops.reprepro` role can be used to create APT
+repositories that require authentication.
+
+This functionality is also available in the :ref:`debops.apt` role for use via
+the Ansible inventory. See :ref:`apt__ref_auth_files` for more details.
+
+Examples
+~~~~~~~~
+
+Provide credentials for a private APT repository, with password stored in the
+:file:`secret/` directory managed by the :ref:`debops.secret` role. The APT
+repository is managed by the :ref:`debops.reprepro` role which uses the
+:ref:`debops.nginx` role to manage the authentication credentials.
+
+.. code-block:: yaml
+
+   keyring__dependent_apt_auth_files:
+
+     - name: 'private_repo'
+       machine: 'https://repo.example.org/debian'
+       login: 'username'
+       password: '{{ lookup("password", secret + "/credentials/repo"
+                                               + "/nginx/htpasswd"
+                                               + "/apt_access/username") }}'
+
+Syntax
+~~~~~~
+
+THe variables are defined as a list of YAML dictionaries .Each configuration
+entry defines a separate file in the :file:`/etc/apt/auth.conf.d/` directory.
+The state and contents of the file are specified using specific parameters:
+
+``name``
+  Required. Name of the configuration file with authentication credentials, can
+  contain :file:`.conf` suffix which will be stripped. Entries with the same
+  ``name`` parameter are merged together using :ref:`universal_configuration`
+  and can affect each other in order of appearance.
+
+``machine``
+  Required. The URL of the APT repository that requires the following
+  credentials.
+
+``login``
+  Required. The username expected by the APT repository during HTTP Basic
+  Authentication.
+
+``password``
+  Required. The password expected by the APT repository during HTTP Basic
+  Authentication. It can be stored in the :file:`secret/` directory and
+  retrieved from there if needed.
+
+``state``
+  Optional. If not defined or ``present``, a given configuration file will
+  created on the host. If ``absent``, a given configuration file will be
+  removed from the host. If ``ignore``, a given entry will not be evaluated
+  during role execution.
+
+``comment``
+  Optional. String or YAML text block with additional comments included in the
+  generated configuration file.
+
+
 .. _keyring__ref_dependent_apt_keys:
 
 keyring__dependent_apt_keys
@@ -43,7 +114,8 @@ key store, it will be downloaded from the keyserver specified in the
    # Role: debops.nginx/defaults/main.yml
    nginx__keyring__dependent_apt_keys:
 
-     - '573B FD6B 3D8F BC64 1079  A6AB ABF5 BD82 7BD9 BF62'
+     - id: '573B FD6B 3D8F BC64 1079  A6AB ABF5 BD82 7BD9 BF62'
+       keyring: 'nginx.asc'
 
 .. code-block:: yaml
 
@@ -71,9 +143,30 @@ playbook is the same as in the previous example:
    nginx__keyring__dependent_apt_keys:
 
      - id: '573B FD6B 3D8F BC64 1079  A6AB ABF5 BD82 7BD9 BF62'
+       keyring: 'nginx.asc'
        url: 'https://nginx.org/keys/nginx_signing.key'
        repo: 'deb http://nginx.org/packages/debian {{ ansible_distribution_release }} nginx'
-       state: '{{ "present" if nginx__upstream|bool else "absent" }}'
+       state: '{{ "present" if nginx__upstream | bool else "absent" }}'
+
+Also with the :ref:`debops.nginx` role, install the APT GPG key in a separate
+keyring and tell APT to use this key only for Nginx official packages. The APT
+repository configuration will be stored in the
+:file:`/etc/apt/sources.list.d/nginx-upstream.list' configuration file (note
+the ``>`` YAML block marker, which will fold the repository string to a single
+line):
+
+.. code-block:: yaml
+
+   nginx__keyring__dependent_apt_keys:
+
+     - id: '573B FD6B 3D8F BC64 1079  A6AB ABF5 BD82 7BD9 BF62'
+       url: 'https://nginx.org/keys/nginx_signing.key'
+       keyring: '/usr/share/keyring/nginx-archive-keyring.gpg'
+       repo: >
+         deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg]
+             http://nginx.org/packages/debian {{ ansible_distribution_release }} nginx
+       filename: 'nginx-upstream'
+       state: '{{ "present" if nginx__upstream | bool else "absent" }}'
 
 There are many more real-world examples available in various DebOps roles. To
 find them, you can run the command in the DebOps monorepo root directory:
@@ -91,12 +184,21 @@ imported either from the local storage, or from the configured GPG keyserver.
 Alternatively, list entry can be a YAML dictionary which allows a more
 fine-grained control over the state of the GPG key and its source.
 
+The role can manage repository keys directly (default) in the
+:file:`/etc/apt/keyrings/` directory, or using the deprecated
+``ansible.builtin.apt_key`` module (disabled by default).
+
 The YAML dictionaries are defined using specific parameters:
 
 ``id``
   The GPG key fingerprint which is defined by this entry. It can be specified
   with spaces, which will be automatically removed when necessary. This
   parameter is not required if the ``repo`` parameter is specified.
+
+``apt_key``
+  Optional, boolean. If not specified or ``False``, the role will manage the
+  specified keys itself directly. If ``True``, the Ansible module will be used
+  instead.
 
 ``data``
   Optional. The contents of the GPG key specified as a YAML text block (the key
@@ -109,7 +211,10 @@ The YAML dictionaries are defined using specific parameters:
 ``url``
   Optional. The URL where a given GPG key can be found. The ``id`` parameter
   still needs to be specified for the ``apt_key`` Ansible module to work as
-  expected.
+  expected. If the ``url`` parameter is not specified, and the key has not been
+  found in a local keyring or is not specified directly, the role will try and
+  download the specified GPG key from the Ubuntu keyserver
+  (https://keyserver.ubuntu.com/) using its API.
 
 ``keybase``
   Optional. The name of the `Keybase`__ profile which should be used to lookup
@@ -118,6 +223,11 @@ The YAML dictionaries are defined using specific parameters:
 
   .. __: https://keybase.io/
   .. __: https://keybase.io/docs/api/1.0/call/user/pgp_keys.asc
+
+``keyring``
+  Optional. Absolute path for the keyring where the GPG key should be stored.
+  If omitted, the key will be stored in the system-wide keyring
+  (:file:`/etc/apt/trusted.gpg`).
 
 ``keyserver``
   Optional. Override the default GPG keyserver URL specified in the
@@ -175,7 +285,7 @@ installation from upstream is enabled. The GPG key will be added to the
    yadm__upstream_gpg_id: '31B9 62F7 CC57...'
    yadm__keyring__dependent_gpg_keys:
      - id: '{{ yadm__upstream_gpg_id }}'
-       state: '{{ "present" if yadm__upstream_enabled|bool else "absent" }}'
+       state: '{{ "present" if yadm__upstream_enabled | bool else "absent" }}'
 
 .. code-block:: yaml
 
@@ -232,7 +342,7 @@ repositories:
        group: '{{ golang__group }}'
        home: '{{ golang__home }}'
 
-     - '{{ golang__combined_packages | parse_kv_items
+     - '{{ golang__combined_packages | debops.debops.parse_kv_items
            | selectattr("gpg", "defined") | selectattr("state", "equalto", "present")
            | map(attribute="gpg") | list }}'
 

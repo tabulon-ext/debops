@@ -6,8 +6,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Configure GRUB
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_grub' ]
   become: True
 
@@ -16,6 +15,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: grub
       tags: [ 'role::grub', 'skip::grub' ]

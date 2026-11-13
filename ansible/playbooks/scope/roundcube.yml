@@ -1,0 +1,25 @@
+---
+# Copyright (C) 2016-2018 Reto Gantenbein <reto.gantenbein@linuxmonk.ch>
+# Copyright (C) 2016-2026 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+- name: Install and manage Roundcube Web mail
+  collections: [ 'debops.debops' ]
+  hosts: [ 'debops_all_services', 'debops_service_roundcube' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  tasks:
+
+    - name: Import DebOps global handlers
+      ansible.builtin.import_role:
+        name: 'debops.debops.global_handlers'
+      tags: [ 'role::roundcube', 'skip::roundcube' ]
+
+    - name: Import roundcube role
+      ansible.builtin.import_role:
+        name: 'debops.debops.roundcube'
+      tags: [ 'role::roundcube', 'skip::roundcube' ]

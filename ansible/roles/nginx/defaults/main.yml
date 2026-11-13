@@ -59,35 +59,35 @@ nginx_flavor: 'full'
 #
 # Specify the OS distribution release to use in flavored repositories.
 nginx__flavor_distribution_release: '{{ ansible_local.core.distribution_release
-                                        |d(ansible_distribution_release) }}'
+                                         | d(ansible_distribution_release) }}'
 
                                                                    # ]]]
 # .. envvar:: nginx__flavor_apt_key_id [[[
 #
 # The APT GPG key id of the currently selected flavor.
-nginx__flavor_apt_key_id: '{{ nginx__flavor_apt_key_id_map[nginx_flavor]|d() }}'
+nginx__flavor_apt_key_id: '{{ nginx__flavor_apt_key_id_map[nginx_flavor] | d() }}'
 
                                                                    # ]]]
 # .. envvar:: nginx__flavor_apt_repository [[[
 #
 # The APT repository of the currently selected flavor.
-nginx__flavor_apt_repository: '{{ nginx__flavor_apt_repository_map[nginx_flavor]|d() }}'
+nginx__flavor_apt_repository: '{{ nginx__flavor_apt_repository_map[nginx_flavor] | d() }}'
 
                                                                    # ]]]
 # .. envvar:: nginx__flavor_apt_key_id_map [[[
 #
 # Dicrionary which maps the APT GPG key ids to their respective flavors.
 nginx__flavor_apt_key_id_map:
-  'nginx.org': '573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62'
-  'passenger': '16378A33A6EF16762922526E561F9B9CAC40B2F7'
+  'nginx.org': '8540A6F18833A80E9C1653A42FD21310B49F6B46'
+  'passenger': 'C6F448ED4BC80A4E95257250D870AB033FB45BD1'
 
                                                                    # ]]]
 # .. envvar:: nginx__flavor_apt_repository_map [[[
 #
 # Dicrionary which maps the APT GPG repositories to their respective flavors.
 nginx__flavor_apt_repository_map:
-  'nginx.org': 'deb https://nginx.org/packages/{{ ansible_distribution | lower }}/ {{ nginx__flavor_distribution_release }} nginx'
-  'passenger': 'deb https://oss-binaries.phusionpassenger.com/apt/passenger {{ nginx__flavor_distribution_release }} main'
+  'nginx.org': 'deb [signed-by=/etc/apt/keyrings/nginx.asc] https://nginx.org/packages/{{ ansible_distribution | lower }}/ {{ nginx__flavor_distribution_release }} nginx'
+  'passenger': 'deb [signed-by=/etc/apt/keyrings/passenger.asc] https://oss-binaries.phusionpassenger.com/apt/passenger {{ nginx__flavor_distribution_release }} main'
 
                                                                    # ]]]
 # .. envvar:: nginx__flavor_packages [[[
@@ -120,7 +120,7 @@ nginx_flavor_package_map:
     - 'ruby'
     - '{{ "passenger"
           if (nginx__flavor_distribution_release in
-              [ "wheezy", "jessie", "precise", "trusty", "xenial" ])
+              ["trusty", "xenial"])
           else "libnginx-mod-http-passenger" }}'
 
   # Upstream version from https://nginx.org/ packaged for Debian
@@ -169,7 +169,24 @@ nginx_run_path: '/run'
 # .. envvar:: nginx_log_path [[[
 #
 # Directory where :program:`nginx` log files are stored.
-nginx_log_path: '/var/log/nginx'
+# Socket where :program:`nginx` sends logs to, if nginx_log_to_syslog is true.
+# A socket can be unix:/path/to/socket or ipaddress:port
+nginx_log_path: '{{ "unix:/dev/log" if nginx_log_to_syslog else "/var/log/nginx" }}'
+
+                                                                   # ]]]
+# .. envvar:: nginx_log_to_syslog [[[
+#
+# If this variable is true, :program:`nginx` logs to the socket stored
+# in `nginx_log_path`.
+nginx_log_to_syslog: False
+
+                                                                   # ]]]
+# .. envvar:: nginx_syslog_config [[[
+#
+# Examples from nginx documentation are:
+# `nohostname`
+# `facility=local7,tag=nginx,severity=info`
+nginx_syslog_config: 'nohostname'
                                                                    # ]]]
                                                                    # ]]]
 # Phusion Passenger support [[[
@@ -323,6 +340,13 @@ nginx_http_options: |
 nginx_http_extra_options: ''
 
                                                                    # ]]]
+# .. envvar:: nginx_events_extra_options [[[
+#
+# A string or YAML text block with additional nginx events options placed in the
+# :file:`/etc/nginx/nginx.conf` inside of the "events" block.
+nginx_events_extra_options: ''
+
+                                                                   # ]]]
 # .. envvar:: nginx_extra_options [[[
 #
 # A string or YAML text block with additional nginx options placed in the
@@ -399,7 +423,7 @@ nginx_default_keepalive_timeout: 60
                                                                    # ]]]
 # .. envvar:: nginx_multi_accept [[[
 #
-# If enabled a worker proccess will accept all new connections at a time,
+# If enabled a worker process will accept all new connections at a time,
 # instead of a new connection at a time.
 nginx_multi_accept: 'off'
 
@@ -408,26 +432,26 @@ nginx_multi_accept: 'off'
 #
 # Enable or disable support for PKI/SSL/TLS in nginx.
 # Defaults to ``True`` if :ref:`debops.pki` is enabled on the remote host.
-nginx_pki: '{{ ansible_local|d() and ansible_local.pki|d() and
-               (ansible_local.pki.enabled|d() | bool) }}'
+nginx_pki: '{{ ansible_local | d() and ansible_local.pki | d() and
+               (ansible_local.pki.enabled | d() | bool) }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_pki_path [[[
 #
 # Directory path where PKI realm live.
-nginx_pki_path: '{{ ansible_local.pki.path|d("/etc/pki/realms") }}'
+nginx_pki_path: '{{ ansible_local.pki.path | d("/etc/pki/realms") }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_pki_realm [[[
 #
 # Default PKI realm to use.
-nginx_pki_realm: '{{ ansible_local.pki.realm|d("domain") }}'
+nginx_pki_realm: '{{ ansible_local.pki.realm | d("domain") }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_pki_ca_realm [[[
 #
 # PKI realm to use for client CA.
-nginx_pki_ca_realm: '{{ ansible_local.pki.ca_realm|d("domain") }}'
+nginx_pki_ca_realm: '{{ ansible_local.pki.ca_realm | d("domain") }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_pki_crt [[[
@@ -468,7 +492,7 @@ nginx_pki_hook_name: 'nginx'
 # .. envvar:: nginx_pki_hook_path [[[
 #
 # Directory with PKI hooks.
-nginx_pki_hook_path: '{{ ansible_local.pki.hooks|d("/etc/pki/hooks") }}'
+nginx_pki_hook_path: '{{ ansible_local.pki.hooks | d("/etc/pki/hooks") }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_pki_hook_action [[[
@@ -481,12 +505,12 @@ nginx_pki_hook_action: 'reload'
 #
 # Path to the file with Diffie-Hellman parameters to use by the webserver.
 nginx_ssl_dhparam: '{{ (""
-                        if nginx_default_tls_protocols|length == 1 and
+                        if nginx_default_tls_protocols | length == 1 and
                            nginx_default_tls_protocols[0] == "TLSv1.3"
                         else
                            (ansible_local.dhparam[nginx_ssl_dhparam_set]
-                            if (ansible_local|d() and ansible_local.dhparam|d() and
-                                ansible_local.dhparam[nginx_ssl_dhparam_set]|d())
+                            if (ansible_local | d() and ansible_local.dhparam | d() and
+                                ansible_local.dhparam[nginx_ssl_dhparam_set] | d())
                             else "")) }}'
 
                                                                    # ]]]
@@ -501,7 +525,7 @@ nginx_ssl_dhparam_set: 'default'
 # Default set of cipher suites to use.
 # Refer to ``nginx_ssl_ciphers`` for details.
 nginx_default_ssl_ciphers: '{{ "mozilla_modern"
-                               if nginx_default_tls_protocols|length == 1 and
+                               if nginx_default_tls_protocols | length == 1 and
                                   nginx_default_tls_protocols[0] == "TLSv1.3"
                                else "mozilla_intermediate" }}'
 
@@ -512,9 +536,9 @@ nginx_default_ssl_ciphers: '{{ "mozilla_modern"
 # version 1.13.0 and up.
 #
 # See also: https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_protocols
-nginx_default_tls_protocols: '{{ [ "TLSv1.2", "TLSv1.3" ]
-                                 if ansible_local.nginx.version|d("0.0.0") is version("1.13.0", ">=")
-                                 else [ "TLSv1.2" ] }}'
+nginx_default_tls_protocols: '{{ ["TLSv1.2", "TLSv1.3"]
+                                 if ansible_local.nginx.version | d("0.0.0") is version("1.13.0", ">=")
+                                 else ["TLSv1.2"] }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_default_ssl_curve [[[
@@ -563,7 +587,8 @@ nginx_ocsp_verify: '{{ nginx_ocsp | bool }}'
                                                                    # ]]]
 # .. envvar:: nginx_ocsp_resolvers [[[
 #
-# List of DNS servers used to resolve OCSP stapling. If it's empty, nginx role
+# List of DNS servers used to resolve OCSP stapling and other
+# dns queries (e.g. for proxy_path). If it's empty, nginx role
 # will try to use the nameservers from /etc/resolv.conf
 # Currently only the first nameserver is used
 nginx_ocsp_resolvers: []
@@ -606,13 +631,6 @@ nginx_hsts_preload: False
 # reducing the number of RTTs (Round Trip Times).
 # Available with nginx version >= 1.9.5
 nginx_enable_http2: True
-
-                                                                   # ]]]
-# .. envvar:: nginx_enable_spdy [[[
-#
-# Enables experimental support for .. _SPDY: https://www.chromium.org/spdy/spdy-protocol HTTP protocol.
-# Available with nginx version >= 1.4 && < 1.9.5
-nginx_enable_spdy: False
 
                                                                    # ]]]
 # .. envvar:: nginx__http_csp_append [[[
@@ -731,9 +749,10 @@ nginx_status: []
 # .. envvar:: nginx_status_localhost [[[
 #
 # By default allow access to the status page from webserver itself
-nginx_status_localhost: '{{ [ "127.0.0.1/32", "::1/128" ] + ansible_all_ipv4_addresses|d([]) +
-                            (ansible_all_ipv6_addresses|d([]) |
-                             difference(ansible_all_ipv6_addresses|d([]) | ipaddr("link-local"))) }}'
+nginx_status_localhost: '{{ ["127.0.0.1/32", "::1/128"] + ansible_all_ipv4_addresses | d([]) +
+                            (ansible_all_ipv6_addresses | d([])
+                             | difference(ansible_all_ipv6_addresses | d([])
+                             | ansible.utils.ipaddr("link-local"))) }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_status_name [[[
@@ -780,6 +799,18 @@ nginx_htpasswd_secret_path: '{{ secret + "/credentials/" + inventory_hostname + 
 # The encryption scheme used by the ``htpasswd`` Ansible module to generate
 # password hashes. You should use schemes supported by ``passlib`` library.
 nginx__htpasswd_crypt_scheme: 'sha512_crypt'
+
+                                                                   # ]]]
+# .. envvar:: nginx__htpasswd_password_length [[[
+#
+# Default length of the automatically generated passwords.
+nginx__htpasswd_password_length: 32
+
+                                                                   # ]]]
+# .. envvar:: nginx__htpasswd_password_characters [[[
+#
+# Set of characters allowed in passwords autogenerated by the role.
+nginx__htpasswd_password_characters: 'ascii_letters,digits,.-_~&()*='
 
                                                                    # ]]]
 # .. envvar:: nginx__htpasswd [[[
@@ -999,8 +1030,7 @@ nginx_default_try_files:
   - '$uri/'
   - '$uri.html'
   - '$uri.htm'
-  - '/index.html'
-  - '/index.htm'
+  - '$uri/index.html'
 
                                                                    # ]]]
 # .. envvar:: nginx__log_format [[[
@@ -1069,18 +1099,12 @@ nginx_apt_preferences_dependent_list: '{{ nginx__apt_preferences__dependent_list
 nginx__apt_preferences__dependent_list:
 
   - package: 'nginx nginx-*'
-    backports: [ 'wheezy' ]
-    reason: 'Support for SPDY, OCSP stapling'
-    by_role: 'debops.nginx'
-    state: '{{ ((nginx__deploy_state in [ "present" ]) and (nginx_flavor not in [ "passenger" ])) | ternary("present", "absent") }}'
-
-  - package: 'nginx nginx-*'
     pin: 'release o=Phusion'
     reason: 'Support for Phusion Passenger'
     priority: '600'
     suffix: '_passenger'
     by_role: 'debops.nginx'
-    state: '{{ ((nginx__deploy_state in [ "present" ]) and (nginx_flavor in [ "passenger" ])) | ternary("present", "absent") }}'
+    state: '{{ ((nginx__deploy_state in ["present"]) and (nginx_flavor in ["passenger"])) | ternary("present", "absent") }}'
 
                                                                    # ]]]
 # .. envvar:: nginx_php5_status [[[
@@ -1206,7 +1230,7 @@ nginx_group_allow: []
 # .. envvar:: nginx_host_allow [[[
 #
 # List of the CIDR subnets or IP addresses which are allowed to connect to the
-# HTTP or HTTPS service, configured on specifc hosts in the Ansible inventory.
+# HTTP or HTTPS service, configured on specific hosts in the Ansible inventory.
 nginx_host_allow: []
 
                                                                    # ]]]
@@ -1240,10 +1264,19 @@ nginx__ferm__dependent_rules:
 # Configuration for the :ref:`debops.nginx` Ansible role.
 nginx__keyring__dependent_apt_keys:
 
-  - id: '{{ nginx__flavor_apt_key_id }}'
-    repo: '{{ nginx__flavor_apt_repository }}'
+  - id: '{{ nginx__flavor_apt_key_id_map["nginx.org"] }}'
+    keyring: 'nginx.asc'
+    repo: '{{ nginx__flavor_apt_repository_map["nginx.org"] }}'
     state: '{{ "present"
-               if (nginx_flavor in [ "nginx.org", "passenger" ] and
+               if (nginx_flavor in ["nginx.org"] and
+                   nginx__deploy_state == "present")
+               else "absent" }}'
+
+  - id: '{{ nginx__flavor_apt_key_id_map["passenger"] }}'
+    keyring: 'passenger.asc'
+    repo: '{{ nginx__flavor_apt_repository_map["passenger"] }}'
+    state: '{{ "present"
+               if (nginx_flavor in ["passenger"] and
                    nginx__deploy_state == "present")
                else "absent" }}'
 

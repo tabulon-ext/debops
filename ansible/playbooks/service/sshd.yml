@@ -5,8 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage OpenSSH Server
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_all_hosts', 'debops_service_sshd' ]
   become: True
 
@@ -17,17 +16,14 @@
   pre_tasks:
 
     - name: Prepare sshd environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'sshd'
         tasks_from: 'main_env'
       tags: [ 'role::sshd', 'role::ldap' ]
 
   roles:
 
-    - role: apt_preferences
-      tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
-      apt_preferences__dependent_list:
-        - '{{ sshd__apt_preferences__dependent_list }}'
+    - role: 'global_handlers'
 
     - role: ferm
       tags: [ 'role::ferm', 'skip::ferm' ]
@@ -55,6 +51,11 @@
       tags: [ 'role::pam_access', 'skip::pam_access' ]
       pam_access__dependent_rules:
         - '{{ sshd__pam_access__dependent_rules }}'
+
+    - role: sudo
+      tags: [ 'role::sudo', 'skip::sudo' ]
+      sudo__dependent_sudoers:
+        - '{{ sshd__sudo__dependent_sudoers }}'
 
     - role: sshd
       tags: [ 'role::sshd', 'skip::sshd' ]

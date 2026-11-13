@@ -2,26 +2,22 @@
 # .. vim: foldmarker=[[[,]]]:foldmethod=marker
 
 # .. Copyright (C) 2015-2017 Robin Schneider <ypid@riseup.net>
-# .. Copyright (C) 2017 DebOps <https://debops.org/>
+# .. Copyright (C) 2017-2022 DebOps <https://debops.org/>
 # .. SPDX-License-Identifier: GPL-3.0-only
 
 # .. _dropbear_initramfs__ref_defaults:
 
-# debops-contrib.dropbear_initramfs default variables [[[
-# =======================================================
-
 # .. contents:: Sections
 #    :local:
 #
-# .. include:: includes/all.rst
-
+# .. include:: ../../../../includes/global.rst
 
 # Packages and installation [[[
 # -----------------------------
 
 # .. envvar:: dropbear_initramfs__base_packages [[[
 #
-# List of base packages to install.
+# List of APT packages to install for :command:`dropbear_initramfs` support.
 #
 # Supported versions:
 #
@@ -30,17 +26,32 @@
 #
 dropbear_initramfs__base_packages:
   - '{{ "dropbear"
-        if (
-          (ansible_distribution == "Debian" and ansible_distribution_release in ["jessie"]) or
-          (ansible_distribution == "Ubuntu" and ansible_distribution_release in ["precise", "trusty"])
-        )
+        if (ansible_distribution == "Ubuntu" and ansible_distribution_release in ["trusty"])
         else "dropbear-initramfs" }}'
 
                                                                    # ]]]
 # .. envvar:: dropbear_initramfs__packages [[[
 #
-# List of additional packages to install.
+# List of additional APT packages to install during :command:`dropbear_initramfs`
+# configuration.
 dropbear_initramfs__packages: []
+
+                                                                   # ]]]
+# .. envvar:: dropbear_initramfs__config_path [[[
+#
+# Path to dropbear initramfs configuration files.
+dropbear_initramfs__config_path: '{{ "/etc/dropbear-initramfs"
+                                     if (ansible_distribution_release in ["stretch", "buster", "bullseye"])
+                                     else "/etc/dropbear/initramfs" }}'
+
+                                                                   # ]]]
+# .. envvar:: dropbear_initramfs__config_file [[[
+#
+# Path to dropbear initramfs configuration file.
+dropbear_initramfs__config_file: '{{ dropbear_initramfs__config_path + "/"
+                                     + ("config"
+                                        if (ansible_distribution_release in ["stretch", "buster", "bullseye"])
+                                        else "dropbear.conf") }}'
 
                                                                    # ]]]
 # .. envvar:: dropbear_initramfs__deploy_state [[[
@@ -64,8 +75,8 @@ dropbear_initramfs__deploy_state: 'present'
 # Refer to https://www.kernel.org/doc/Documentation/filesystems/nfs/nfsroot.txt
 # for support configuration options.
 #
-# Note that the ``IP`` kernel parameter as of Debian jessie only supports legacy
-# IPv4. But don’t worry, the role has you covered. Refer to
+# Note that the ``IP`` kernel parameter only supports legacy IPv4. But don’t
+# worry, the role has you covered. Refer to
 # :envvar:`dropbear_initramfs__interfaces`.
 
 # .. envvar:: dropbear_initramfs__network_autoconf [[[
@@ -78,15 +89,11 @@ dropbear_initramfs__network_autoconf: 'dhcp'
 # .. envvar:: dropbear_initramfs__network_device [[[
 #
 # Default network device.
-dropbear_initramfs__network_device: '{{
-  ansible_default_ipv6.interface
-  if ansible_default_ipv6.interface|d()
-  else (
-    ansible_default_ipv4.interface
-    if ansible_default_ipv4.interface|d()
-    else "eth0"
-  )
-  }}'
+dropbear_initramfs__network_device: '{{ ansible_default_ipv6.interface
+                                        if ansible_default_ipv6.interface | d()
+                                        else (ansible_default_ipv4.interface
+                                              if ansible_default_ipv4.interface | d()
+                                              else "eth0") }}'
 
                                                                    # ]]]
 # .. envvar:: dropbear_initramfs__network_address [[[
@@ -115,8 +122,8 @@ dropbear_initramfs__network_gateway: '{{ ansible_default_ipv4.gateway }}'
 # The `ipwrap` filter causes IPv6 address to work on some platforms.
 # Refer to: https://serverfault.com/questions/445296/is-there-a-linux-kernel-boot-parameter-to-configure-an-ipv6-address/701451#701451
 dropbear_initramfs__network_manual: '{{
-  (dropbear_initramfs__network_address|ipwrap) + "::" +
-  (dropbear_initramfs__network_gateway|ipwrap) + ":" +
+  (dropbear_initramfs__network_address | ansible.utils.ipwrap) + "::" +
+  (dropbear_initramfs__network_gateway | ansible.utils.ipwrap) + ":" +
   dropbear_initramfs__network_netmask + "::" +
   dropbear_initramfs__network_device + ":none" }}'
 
@@ -188,7 +195,7 @@ dropbear_initramfs__port: '22'
 # Disable password login?
 dropbear_initramfs__disable_password_login: '{{
   True
-  if dropbear_initramfs__combined_authorized_keys|d()
+  if dropbear_initramfs__combined_authorized_keys | d()
   else False
   }}'
 
@@ -222,11 +229,11 @@ dropbear_initramfs__forced_command: ''
 # Set options parsed to dropbear.
 dropbear_initramfs__dropbear_options: '{{
   "-p " + dropbear_initramfs__port +
-  (" -g -s" if dropbear_initramfs__disable_password_login|d() else "") +
-  (" -j -k" if dropbear_initramfs__disable_port_forwarding|d() else "") +
+  (" -g -s" if dropbear_initramfs__disable_password_login | d() else "") +
+  (" -j -k" if dropbear_initramfs__disable_port_forwarding | d() else "") +
   " -I " + dropbear_initramfs__idle_timeout +
   " -T " + dropbear_initramfs__max_authentication_attempts +
-  (" -c " + dropbear_initramfs__forced_command if dropbear_initramfs__forced_command|d() else "")
+  (" -c " + dropbear_initramfs__forced_command if dropbear_initramfs__forced_command | d() else "")
   }}'
 
                                                                    # ]]]
@@ -262,32 +269,13 @@ dropbear_initramfs__combined_authorized_keys: '{{ dropbear_initramfs__authorized
                                                   dropbear_initramfs__host_authorized_keys }}'
 
                                                                    # ]]]
-# .. envvar:: dropbear_initramfs__authorized_keys_options [[[
+# .. envvar:: dropbear_initramfs__authorized_keys_key_options [[[
 #
 # List of default SSH options added to all public keys. If it's set to
 # ``{{ omit }}``, no options will be added automatically. The list of options can be
 # overridden by the ``item.options`` parameter.
 # Refer to :manpage:`dropbear(8)` for details.
-dropbear_initramfs__authorized_keys_options: '{{ omit }}'
-                                                                   # ]]]
-                                                                   # ]]]
-# Configuration for other Ansible roles [[[
-# -----------------------------------------
-
-# .. envvar:: dropbear_initramfs__apt_preferences__dependent_list [[[
-#
-# Configuration for the debops.apt_preferences_ role.
-dropbear_initramfs__apt_preferences__dependent_list:
-
-  - package: 'dropbear-initramfs'
-    pin: 'release o=Debian,n=stretch'
-    priority: 800
-    reason: 'Stronger cryptography. dropbear 2014.65-1 only offers: hmac-sha1-96,hmac-sha1,hmac-md5'
-    by_role: 'debops-contrib.dropbear_initramfs'
-    state: '{{ "present"
-               if (("dropbear-initramfs" in dropbear_initramfs__base_packages) and
-                   (ansible_distribution == "Debian" and ansible_distribution_release in ["jessie"]))
-               else "absent" }}'
+dropbear_initramfs__authorized_keys_key_options: '{{ omit }}'
                                                                    # ]]]
                                                                    # ]]]
                                                                    # ]]]

@@ -4,9 +4,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Install and configure Ansible
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
   hosts: [ 'debops_service_ansible' ]
+  collections: [ 'debops.debops' ]
   become: True
 
   environment: '{{ inventory__environment | d({})
@@ -14,6 +13,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring', 'role::ansible' ]

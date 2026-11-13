@@ -1,4 +1,4 @@
-.. Copyright (C) 2014-2019 Maciej Delmanowski <drybjed@gmail.com>
+.. Copyright (C) 2014-2024 Maciej Delmanowski <drybjed@gmail.com>
 .. Copyright (C) 2015-2017 Robin Schneider <ypid@riseup.net>
 .. Copyright (C) 2014-2019 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-only
@@ -55,6 +55,20 @@ for DHCP and disabled boot services:
        domain: 'custom.{{ ansible_domain }}'
        boot_enabled: False
 
+Generate interface configuration for an internal network with IPv6 Router
+Advertisements for specific internal IP addresses:
+
+.. code-block:: yaml
+
+   dnsmasq__interfaces:
+
+     - name: 'br_internal'
+       dhcp_ipv6_mode: 'ra-names,ra-stateless'
+       ignore_interface_addresses: True
+       addresses:
+         - '192.0.2.1/24'
+         - '2001:db8:feed:beef::1/64'
+
 Syntax
 ~~~~~~
 
@@ -85,7 +99,7 @@ specific parameters:
   to define DHCP options for that specific network. If not specified, the
   interface name will be used by default.
 
-``address`` / ``addressess``
+``address`` / ``addresses``
   Optional. List of IPv4 or IPv6 addresses in the "host/prefix" format which
   should be used in the interface configuration.
 
@@ -98,6 +112,14 @@ specific parameters:
   and uses existing IP addresses defined on the network interface, therefore
   you don't need to use this parameter unless required for a specific
   application.
+
+``ignore_interface_addresses``
+  Optional, boolean. If ``True``, the role will not try to autodetect IP
+  addresses of a given network interface to add them to router advertisements.
+  This can be used with the ``address`` or ``addresses`` parameters to select
+  which IP addresses are advertised on a given network, for example to avoid
+  advertising public IPv6 router address on internal IPv6 network, which can
+  lead to multiple default routes on clients and issues with traffic flow.
 
 ``hostname``
   Optional. Specify the hostname which will be used in the interface DNS
@@ -339,7 +361,7 @@ Define PTR resource records for hosts:
      - ptr: '40.2.0.192.in-addr.arpa'
        target: 'host1.example.org'
 
-     - ptr: '{{ "192.0.2.50" | ipaddr("revdns") }}'
+     - ptr: '{{ "192.0.2.50" | ansible.utils.ipaddr("revdns") }}'
        target: 'host2.example.org'
 
 Syntax
@@ -364,9 +386,9 @@ Each entry in the list is a YAML dictionary with specific parameters:
   In DHCP host configuration this parameter specifies the IP addresses which
   will be reserved for a particular host.
 
-  In DNS record configuration this parameter along with the ``host`` parameter
-  defines a DNS A record; in case of multiple IP addresses, the first IP
-  address will be used to create the host's DNS PTR record.
+  In DNS record configuration this parameter along with the ``host`` / ``a`` /
+  ``aaaa`` parameter defines a DNS A record; in case of multiple IP addresses,
+  the first IP address will be used to create the host's DNS PTR record.
 
 ``cname``
   Optional. If defined in a DHCP client configuration, it's a list of DNS
@@ -456,15 +478,10 @@ The parameters below are related to DNS record configuration:
   record priority.
 
 ``srv``
-  Optional. Define a `DNS SRV record`__. The parameter value is the name of the
-  SRV record in the DNS database; the ``target`` parameter is requied and
-  specifies the corresponding host. The ``port`` parameter is used to specify
-  the TCP/UDP port to connect to.
-
-  .. __: https://en.wikipedia.org/wiki/SRV_record
-
-  The ``preference`` or ``priority`` and ``weight`` parameters are optional and
-  can be used to specify the order in which different hosts should be accessed.
+  Optional. Define :ref:`dns_configuration_srv`. The parameter value is the
+  name of the SRV record; the ``target`` and ``port`` parameters are required
+  while the ``preference``, ``priority`` and ``weight`` parameters are optional,
+  see :ref:`dns_configuration_srv` for further details.
 
 ``target``
   Optional. This parameter is used in various DNS record entries to specify the

@@ -119,6 +119,7 @@
 .. _Ansible ansible.builtin.apt module: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html
 .. _Ansible ansible.builtin.apt_key module: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_key_module.html
 .. _Ansible ansible.builtin.apt_repository module: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_repository_module.html
+.. _Ansible ansible.builtin.deb822_repository module: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/deb822_repository_module.html
 .. _Ansible arista.eos.eos_acl_interfaces module: https://docs.ansible.com/ansible/latest/collections/arista/eos/eos_acl_interfaces_module.html
 .. _Ansible arista.eos.eos_acls module: https://docs.ansible.com/ansible/latest/collections/arista/eos/eos_acls_module.html
 .. _Ansible arista.eos.eos_banner module: https://docs.ansible.com/ansible/latest/collections/arista/eos/eos_banner_module.html
@@ -2069,12 +2070,12 @@
 .. _Ansible community.mongodb.mongodb_status module: https://docs.ansible.com/ansible/latest/collections/community/mongodb/mongodb_status_module.html
 .. _Ansible community.mongodb.mongodb_stepdown module: https://docs.ansible.com/ansible/latest/collections/community/mongodb/mongodb_stepdown_module.html
 .. _Ansible community.mongodb.mongodb_user module: https://docs.ansible.com/ansible/latest/collections/community/mongodb/mongodb_user_module.html
-.. _Ansible community.mysql.mysql_db module: https://docs.ansible.com/ansible/latest/collections/community/mysql/mysql_db_module.html
-.. _Ansible community.mysql.mysql_info module: https://docs.ansible.com/ansible/latest/collections/community/mysql/mysql_info_module.html
-.. _Ansible community.mysql.mysql_query module: https://docs.ansible.com/ansible/latest/collections/community/mysql/mysql_query_module.html
-.. _Ansible community.mysql.mysql_replication module: https://docs.ansible.com/ansible/latest/collections/community/mysql/mysql_replication_module.html
-.. _Ansible community.mysql.mysql_user module: https://docs.ansible.com/ansible/latest/collections/community/mysql/mysql_user_module.html
-.. _Ansible community.mysql.mysql_variables module: https://docs.ansible.com/ansible/latest/collections/community/mysql/mysql_variables_module.html
+.. _Ansible ansible.mysql.mysql_db module: https://docs.ansible.com/ansible/latest/collections/ansible/mysql/mysql_db_module.html
+.. _Ansible ansible.mysql.mysql_info module: https://docs.ansible.com/ansible/latest/collections/ansible/mysql/mysql_info_module.html
+.. _Ansible ansible.mysql.mysql_query module: https://docs.ansible.com/ansible/latest/collections/ansible/mysql/mysql_query_module.html
+.. _Ansible ansible.mysql.mysql_replication module: https://docs.ansible.com/ansible/latest/collections/ansible/mysql/mysql_replication_module.html
+.. _Ansible ansible.mysql.mysql_user module: https://docs.ansible.com/ansible/latest/collections/ansible/mysql/mysql_user_module.html
+.. _Ansible ansible.mysql.mysql_variables module: https://docs.ansible.com/ansible/latest/collections/ansible/mysql/mysql_variables_module.html
 .. _Ansible community.network.a10_server module: https://docs.ansible.com/ansible/latest/collections/community/network/a10_server_module.html
 .. _Ansible community.network.a10_server_axapi3 module: https://docs.ansible.com/ansible/latest/collections/community/network/a10_server_axapi3_module.html
 .. _Ansible community.network.a10_service_group module: https://docs.ansible.com/ansible/latest/collections/community/network/a10_service_group_module.html
@@ -4668,6 +4669,7 @@
 .. _debops.docker_gen: https://github.com/debops/ansible-docker_gen
 .. _debops.dokuwiki: https://github.com/debops/ansible-dokuwiki
 .. _debops.dovecot: https://github.com/debops/ansible-dovecot
+.. _debops.dropbear_initramfs: https://github.com/debops/ansible-dropbear_initramfs
 .. _debops.elastic_co: https://github.com/debops/ansible-elastic_co
 .. _debops.elasticsearch: https://github.com/debops/ansible-elasticsearch
 .. _debops.encfs: https://github.com/debops/ansible-encfs
@@ -4855,7 +4857,6 @@
 
 .. _debops-contrib.openvpn: https://github.com/debops-contrib/ansible-openvpn
 .. _debops-contrib.nullmailer: https://github.com/debops-contrib/ansible-nullmailer
-.. _debops-contrib.dropbear_initramfs: https://github.com/debops-contrib/ansible-dropbear_initramfs
 .. _debops-contrib.apparmor: https://github.com/debops-contrib/ansible-apparmor
 .. _debops-contrib.snapshot_snapper: https://github.com/debops-contrib/ansible-snapshot_snapper
 .. _debops-contrib.roundcube: https://github.com/debops-contrib/ansible-roundcube
@@ -4878,10 +4879,8 @@
 .. _debops-contrib.kibana: https://github.com/debops-contrib/ansible-kibana
 .. _debops-contrib.elasticbeats: https://github.com/debops-contrib/ansible-elasticbeats
 .. _debops-contrib.firejail: https://github.com/debops-contrib/ansible-firejail
-.. _debops-contrib.volkszaehler: https://github.com/debops-contrib/ansible-volkszaehler
 .. _debops-contrib.homeassistant: https://github.com/debops-contrib/ansible-homeassistant
 .. _debops-contrib.neurodebian: https://github.com/debops-contrib/ansible-neurodebian
-.. _debops-contrib.bitcoind: https://github.com/debops-contrib/ansible-bitcoind
 .. ]]]
 
 .. ypid repositories [[[

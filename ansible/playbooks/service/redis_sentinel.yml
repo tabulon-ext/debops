@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage Redis Sentinel service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_redis_sentinel' ]
   become: True
 
@@ -16,12 +15,14 @@
   pre_tasks:
 
     - name: Prepare redis_sentinel environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'redis_sentinel'
         tasks_from: 'main_env'
       tags: [ 'role::redis_sentinel', 'role::ferm' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: apt_preferences
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]

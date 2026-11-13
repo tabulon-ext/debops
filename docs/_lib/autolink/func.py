@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (C) 2018 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -8,6 +7,9 @@ from docutils import nodes
 
 def setup(app):
     app.add_role('man', autolink('https://manpages.debian.org/%s'))
+
+    return {'parallel_read_safe': True,
+            'parallel_write_safe': True}
 
 
 def autolink(pattern):

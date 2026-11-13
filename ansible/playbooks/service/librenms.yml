@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage LibreNMS service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_librenms' ]
   become: True
 
@@ -16,7 +15,7 @@
   pre_tasks:
 
     - name: Apply keyring configuration for php environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'keyring'
       vars:
         keyring__dependent_apt_keys:
@@ -26,18 +25,23 @@
       tags: [ 'role::keyring', 'skip::keyring', 'role::php', 'role::nginx', 'role::mariadb' ]
 
     - name: Prepare php environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'php'
         tasks_from: 'main_env'
       tags: [ 'role::php', 'role::php:env', 'role::logrotate' ]
 
   roles:
 
+    - role: 'global_handlers'
+
     - role: apt_preferences
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
       apt_preferences__dependent_list:
         - '{{ php__apt_preferences__dependent_list }}'
         - '{{ nginx__apt_preferences__dependent_list }}'
+
+    - role: cron
+      tags: [ 'role::cron', 'skip::cron' ]
 
     - role: logrotate
       tags: [ 'role::logrotate', 'skip::logrotate' ]

@@ -2,7 +2,7 @@
 # .. vim: foldmarker=[[[,]]]:foldmethod=marker
 
 # .. Copyright (C) 2015-2020 Maciej Delmanowski <drybjed@gmail.com>
-# .. Copyright (C) 2015-2020 DebOps <https://debops.org/>
+# .. Copyright (C) 2015-2022 DebOps <https://debops.org/>
 # .. SPDX-License-Identifier: GPL-3.0-only
 
 # .. _rsyslog__ref_defaults:
@@ -40,14 +40,14 @@ rsyslog__deploy_state: 'present'
 # option requires additional configuration outside of the ``debops.rsyslog``
 # role. See :ref:`rsyslog__unprivileged` for more details.
 rsyslog__unprivileged: '{{ "True"
-                           if (ansible_distribution in [ "Ubuntu" ])
+                           if (ansible_distribution in ["Ubuntu"])
                            else "False" }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__remote_enabled [[[
 #
 # Enable or disable support for receiving logs from remote hosts. It will be
-# enabled automatically if list of hosts or subnets allowed to connect to
+# enabled automatically if a list of hosts or subnets allowed to connect to the
 # :command:`rsyslog` service is defined in the Ansible inventory.
 rsyslog__remote_enabled: '{{ True
                              if (rsyslog__allow
@@ -98,31 +98,46 @@ rsyslog__packages: []
 #
 # The unprivileged system user account used by the ``rsyslogd`` daemon, when
 # unprivileged operation is enabled.
-rsyslog__user: '{{ "syslog" if rsyslog__unprivileged|bool else "root" }}'
+rsyslog__user: '{{ "syslog" if rsyslog__unprivileged | bool else "root" }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__group [[[
 #
 # The unprivileged system group account used by the ``rsyslogd`` daemon, when
 # unprivileged operation is enabled.
-rsyslog__group: '{{ "syslog" if rsyslog__unprivileged|bool else "root" }}'
+rsyslog__group: '{{ "syslog" if rsyslog__unprivileged | bool else "root" }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__append_groups [[[
 #
 # List of additional UNIX groups to add the rsyslog user into. The
 # ``ssl-cert`` UNIX group is used for the X.509 private key access.
-rsyslog__append_groups: '{{ ["ssl-cert"] if (rsyslog__unprivileged|bool
-				and rsyslog__pki|bool) else [] }}'
+rsyslog__append_groups: '{{ ["ssl-cert"] if (rsyslog__unprivileged | bool
+				and rsyslog__pki | bool) else [] }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__home [[[
 #
 # The home directory of the :envvar:`rsyslog__user` user, dependent on the OS
 # defaults. Takes effect only when the unprivileged mode is enabled.
-rsyslog__home: '{{ "/home/syslog"
-                   if (ansible_distribution in [ "Ubuntu" ])
-                   else "/var/log" }}'
+# On Ubuntu 24.04+, the ``syslog`` user is created by the package with
+# ``/nonexistent`` as the home directory (upstream change from ``/home/syslog``).
+rsyslog__home: '{{ "/nonexistent"
+                   if (ansible_distribution in ["Ubuntu"] and
+                       ansible_distribution_version is version("24.04", ">="))
+                   else ("/home/syslog"
+                         if (ansible_distribution in ["Ubuntu"])
+                         else "/var/log") }}'
+
+                                                                   # ]]]
+# .. envvar:: rsyslog__shell [[[
+#
+# The login shell of the :envvar:`rsyslog__user` user. Ubuntu creates the
+# ``syslog`` user with ``/usr/sbin/nologin`` on all versions; other systems
+# use ``/bin/false``. Both values prevent interactive login.
+rsyslog__shell: '{{ "/usr/sbin/nologin"
+                    if ansible_distribution in ["Ubuntu"]
+                    else "/bin/false" }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__file_owner [[[
@@ -175,37 +190,37 @@ rsyslog__logfiles: []
 #
 # Enable or disable support for X.509 certificates managed by :ref:`debops.pki`
 # role, used for TLS connections.
-rsyslog__pki: '{{ ansible_local.pki.enabled|d()|bool }}'
+rsyslog__pki: '{{ ansible_local.pki.enabled | d() | bool }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__pki_path [[[
 #
 # Path to the directory with PKI realms.
-rsyslog__pki_path: '{{ ansible_local.pki.path|d("/etc/pki") }}'
+rsyslog__pki_path: '{{ ansible_local.pki.path | d("/etc/pki") }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__pki_realm [[[
 #
 # Name of the PKi realm to use with ``rsyslogd``.
-rsyslog__pki_realm: '{{ ansible_local.pki.realm|d("domain") }}'
+rsyslog__pki_realm: '{{ ansible_local.pki.realm | d("domain") }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__pki_ca [[[
 #
 # Name of the root CA certificate used by the ``debops.rsyslog`` role.
-rsyslog__pki_ca: '{{ ansible_local.pki.ca|d("CA.crt") }}'
+rsyslog__pki_ca: '{{ ansible_local.pki.ca | d("CA.crt") }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__pki_crt [[[
 #
 # Name of the client certificate file used by the ``debops.rsyslog`` role.
-rsyslog__pki_crt: '{{ ansible_local.pki.crt|d("default.crt") }}'
+rsyslog__pki_crt: '{{ ansible_local.pki.crt | d("default.crt") }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__pki_key [[[
 #
 # Name of the private key file used by the ``debops.rsyslog`` role.
-rsyslog__pki_key: '{{ ansible_local.pki.key|d("default.key") }}'
+rsyslog__pki_key: '{{ ansible_local.pki.key | d("default.key") }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__default_netstream_driver [[[
@@ -214,7 +229,7 @@ rsyslog__pki_key: '{{ ansible_local.pki.key|d("default.key") }}'
 # ``gtls`` will be enabled by default if the support for PKI is enabled,
 # otherwise ``ptcp`` will be used.
 rsyslog__default_netstream_driver: '{{ "gtls"
-                                       if rsyslog__pki|bool
+                                       if rsyslog__pki | bool
                                        else "ptcp" }}'
 
                                                                    # ]]]
@@ -231,7 +246,7 @@ rsyslog__default_driver_mode: '{{ "1"
                                                                    # ]]]
 # .. envvar:: rsyslog__default_driver_authmode [[[
 #
-# Specify the default network driver authetication mode. Currently only
+# Specify the default network driver authentication mode. Currently only
 # `x509/name` or `anon` are available:
 rsyslog__default_driver_authmode: '{{ "x509/name"
                                       if rsyslog__default_netstream_driver == "gtls" and
@@ -298,25 +313,22 @@ rsyslog__host_allow: []
 
 # .. envvar:: rsyslog__syslog_srv_rr [[[
 #
-# List which contains the result of the :command:`dig` query for syslog
-# server ``SRV`` resource records in the host's domain.
+# List which contains the result of the DNS query for syslog server ``SRV``
+# resource records in the host's domain.
 # See https://tools.ietf.org/html/draft-schoenw-opsawg-nm-srv-03 for details.
-rsyslog__syslog_srv_rr: '{{ q("dig", "_syslog._tcp." + rsyslog__domain + "./SRV", "flat=0")
-                            if rsyslog__domain|d() else [] }}'
+rsyslog__syslog_srv_rr: '{{ q("debops.debops.dig_srv", "_syslog._tcp." + rsyslog__domain,
+                              "syslog." + rsyslog__domain, 6514) }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__default_forward [[[
 #
-# List of the hosts detected via the DNS SRV resource records to which log
+# List of the hosts detected via the DNS ``SRV`` resource records to which log
 # messages will be forwarded. If multiple servers are configured in the SRV
-# record, logs will be snet to all of them at the same time.
-rsyslog__default_forward: '{{ (rsyslog__syslog_srv_rr | selectattr("target", "defined")
-                               | list | sort)
-                              if (rsyslog__syslog_srv_rr and
-                                  "NXDOMAIN" not in rsyslog__syslog_srv_rr and
-                                  rsyslog__syslog_srv_rr[0] and
-                                  not rsyslog__remote_enabled|bool and
-                                  rsyslog__pki|bool)
+# record, logs will be sent to all of them.
+rsyslog__default_forward: '{{ rsyslog__syslog_srv_rr
+                              if (rsyslog__syslog_srv_rr[0]["dig_srv_src"] | d("") != "fallback" and
+                                  not rsyslog__remote_enabled | bool and
+                                  rsyslog__pki | bool)
                               else [] }}'
 
                                                                    # ]]]
@@ -512,14 +524,14 @@ rsyslog__default_configuration:
   # Don't load the kernel input module in Linux Containers
   - name: 'module_imklog'
     state: '{{ "comment"
-               if (ansible_virtualization_type in [ "lxc", "docker", "openvz" ])
+               if (ansible_virtualization_type in ["lxc", "docker", "openvz"])
                else "ignore" }}'
 
   - name: 'module_imudp'
     raw: |
       module(load="imudp")
       input(type="imudp" port="514" ruleset="remote")
-    state: '{{ "present" if rsyslog__remote_enabled|bool else "comment" }}'
+    state: '{{ "present" if rsyslog__remote_enabled | bool else "comment" }}'
 
   - name: 'include_modules'
     comment: 'Include *.input files in /etc/rsyslog.d/'
@@ -535,7 +547,7 @@ rsyslog__default_configuration:
       $FileCreateMode 0640
       $DirCreateMode 0755
       $Umask 0022
-      {% if rsyslog__unprivileged|bool %}
+      {% if rsyslog__unprivileged | bool %}
       $PrivDropToUser {{ rsyslog__user }}
       $PrivDropToGroup {{ rsyslog__group }}
       {% endif %}
@@ -550,7 +562,7 @@ rsyslog__default_configuration:
       $IncludeConfig /etc/rsyslog.d/*.template
     state: 'present'
     section: 'global'
-    copy_id_from: 'default_template'
+    anchor_to: 'default_template'
 
   - name: 'include_outputs'
     comment: 'Include *.output files in /etc/rsyslog.d/'
@@ -573,7 +585,7 @@ rsyslog__default_configuration:
         $IncludeConfig /etc/rsyslog.d/*.remote
       }
     section: 'rules'
-    state: '{{ "present" if rsyslog__remote_enabled|bool else "absent" }}'
+    state: '{{ "present" if rsyslog__remote_enabled | bool else "absent" }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__configuration [[[
@@ -665,8 +677,8 @@ rsyslog__default_rules:
 
   - name: '00forward-logs.conf'
     state: '{{ "present"
-               if (rsyslog__forward_enabled|bool and
-                   rsyslog__pki|bool)
+               if (rsyslog__forward_enabled | bool and
+                   rsyslog__pki | bool)
                else "absent" }}'
     options:
 
@@ -679,7 +691,7 @@ rsyslog__default_rules:
                                             + rsyslog__host_forward)) %}
           {{ element.selector | d("*.*") }} action(
                 type="omfwd"
-                target="{{ (element.target | d(element)) | regex_replace("\.$","") }}"
+                target="{{ (element.target | d(element)) | regex_replace("\.$", "") }}"
                 port="{{ element.port | d('6514') }}"
                 protocol="{{ element.protocol | d('tcp') }}"
                 queue.type="{{ element.queue_type | d('linkedList') }}"
@@ -689,11 +701,11 @@ rsyslog__default_rules:
                 streamDriverMode="{{ element.driver_mode | d(rsyslog__default_driver_mode) }}"
                 streamDriverAuthMode="{{ element.driver_authmode | d(rsyslog__default_driver_authmode) }}"
           {% if element.driver_authmode | d(rsyslog__default_driver_authmode) != "anon" %}
-          {%   if rsyslog__send_permitted_peers is string %}
+          {% if rsyslog__send_permitted_peers is string %}
                 streamDriverPermittedPeers="{{ rsyslog__send_permitted_peers }}"
-          {%   else %}
+          {% else %}
                 streamDriverPermittedPeers="{{ rsyslog__send_permitted_peers | first }}"
-          {%   endif %}
+          {% endif %}
           {% endif %}
               )
           {% endfor %}
@@ -713,7 +725,7 @@ rsyslog__default_rules:
           fileCreateMode="0640"
           dirCreateMode="0755"
         )
-      {% if rsyslog__remote_enabled|bool %}
+      {% if rsyslog__remote_enabled | bool %}
         action(
           type="omfile"
           dynaFile="RemoteHostCronLog"
@@ -741,7 +753,7 @@ rsyslog__default_rules:
           fileCreateMode="0640"
           dirCreateMode="0755"
         )
-      {% if rsyslog__remote_enabled|bool %}
+      {% if rsyslog__remote_enabled | bool %}
         action(
           type="omfile"
           dynaFile="RemoteHostCronLog"
@@ -768,20 +780,20 @@ rsyslog__default_rules:
     raw: |-
       global(
         defaultNetstreamDriver="{{ rsyslog__default_netstream_driver }}"
-      {% if rsyslog__pki|bool %}
+      {% if rsyslog__pki | bool %}
         defaultNetstreamDriverCAFile="{{ rsyslog__pki_path + '/' + rsyslog__pki_realm + '/' + rsyslog__pki_ca }}"
         defaultNetstreamDriverCertFile="{{ rsyslog__pki_path + '/' + rsyslog__pki_realm + '/' + rsyslog__pki_crt }}"
         defaultNetstreamDriverKeyFile="{{ rsyslog__pki_path + '/' + rsyslog__pki_realm + '/' + rsyslog__pki_key }}"
       {% endif %}
       )
     state: '{{ "present"
-               if (rsyslog__remote_enabled|bool or
-                   rsyslog__forward_enabled|bool)
+               if (rsyslog__remote_enabled | bool or
+                   rsyslog__forward_enabled | bool)
                else "absent" }}'
 
   - name: 'remote.input'
     state: '{{ "present"
-               if rsyslog__remote_enabled|bool
+               if rsyslog__remote_enabled | bool
                else "absent" }}'
     options:
 
@@ -802,14 +814,14 @@ rsyslog__default_rules:
             streamDriver.mode="1"
             streamDriver.authMode="{{ rsyslog__default_driver_authmode }}"
           {% if rsyslog__default_driver_authmode != "anon" %}
-          {%   if rsyslog__permitted_peers is string %}
+          {% if rsyslog__permitted_peers is string %}
             permittedPeer="{{ rsyslog__permitted_peers }}"
-          {%   else %}
+          {% else %}
             permittedPeer=["{{ rsyslog__permitted_peers | join('","') }}"]
-          {%   endif %}
+          {% endif %}
           {% endif %}
           )
-        state: '{{ "present" if rsyslog__pki|bool else "absent" }}'
+        state: '{{ "present" if rsyslog__pki | bool else "absent" }}'
 
       - name: 'tcp_plain_input'
         comment: 'Enable plain TCP input'
@@ -829,23 +841,23 @@ rsyslog__default_rules:
             port="6514"
             ruleset="remote"
           )
-        state: '{{ "present" if rsyslog__pki|bool else "absent" }}'
+        state: '{{ "present" if rsyslog__pki | bool else "absent" }}'
 
   - name: '20-ufw.conf'
     divert: True
     divert_to: '65-ufw.conf'
     state: '{{ rsyslog__deploy_state
-               if (ansible_distribution in [ "Ubuntu" ])
+               if (ansible_distribution in ["Ubuntu"])
                else "ignore" }}'
 
   - name: '50-default.conf'
     divert: True
     state: '{{ "present"
-               if (ansible_distribution in [ "Ubuntu" ])
+               if (ansible_distribution in ["Ubuntu"])
                else "absent" }}'
 
   - name: 'remote.template'
-    state: '{{ "present" if rsyslog__remote_enabled|bool else "absent" }}'
+    state: '{{ "present" if rsyslog__remote_enabled | bool else "absent" }}'
     options:
 
       - name: 'remote_host_syslog'
@@ -909,7 +921,7 @@ rsyslog__default_rules:
         state: 'present'
 
   - name: 'local-as-remote.ruleset'
-    state: '{{ "present" if rsyslog__remote_enabled|bool else "absent" }}'
+    state: '{{ "present" if rsyslog__remote_enabled | bool else "absent" }}'
     options:
 
       - name: 'remote_log_copy'
@@ -962,7 +974,7 @@ rsyslog__default_rules:
         )
         stop
       }
-    state: '{{ "present" if rsyslog__remote_enabled|bool else "absent" }}'
+    state: '{{ "present" if rsyslog__remote_enabled | bool else "absent" }}'
 
   - name: '50-dynamic-logs.remote'
     state: 'absent'
@@ -976,7 +988,7 @@ rsyslog__default_rules:
       cron.*                              -?RemoteHostCronLog
       cron.*                              -?RemoteServiceCronLog
       mail.*                              -?RemoteServiceMailLog
-    state: '{{ "present" if rsyslog__remote_enabled|bool else "absent" }}'
+    state: '{{ "present" if rsyslog__remote_enabled | bool else "absent" }}'
 
   - name: 'zz-stop.remote'
     comment: |-
@@ -985,7 +997,7 @@ rsyslog__default_rules:
       http://comments.gmane.org/gmane.comp.sysutils.rsyslog/15616
     raw: |-
       stop
-    state: '{{ "present" if rsyslog__remote_enabled|bool else "absent" }}'
+    state: '{{ "present" if rsyslog__remote_enabled | bool else "absent" }}'
 
                                                                    # ]]]
 # .. envvar:: rsyslog__legacy_rules [[[
@@ -1094,32 +1106,6 @@ rsyslog__rotation_count_remote: '52'
 # Configuration for other Ansible roles [[[
 # -----------------------------------------
 
-# .. envvar:: rsyslog__etc_services__dependent_list [[[
-#
-# Configuration for :ref:`debops.etc_services` Ansible role.
-rsyslog__etc_services__dependent_list:
-
-  - name: 'syslog-tls'
-    port: '6514'
-    protocol: [ 'tcp' ]
-    comment: 'Syslog over TLS [RFC5425]'
-    state: '{{ "present"
-               if (ansible_distribution_release in ["wheezy"])
-               else "absent" }}'
-
-                                                                   # ]]]
-# .. envvar:: rsyslog__apt_preferences__dependent_list [[[
-#
-# Configuration for :ref:`debops.apt_preferences` Ansible role, to install newer
-# version of ``rsyslog`` package on older systems.
-rsyslog__apt_preferences__dependent_list:
-
-  - package: 'rsyslog rsyslog-* libestr0'
-    backports: [ 'wheezy' ]
-    reason: 'Version parity with Debian Jessie'
-    role: 'debops.rsyslog'
-
-                                                                   # ]]]
 # .. envvar:: rsyslog__ferm__dependent_rules [[[
 #
 # Configuration for :ref:`debops.ferm` Ansible role.
@@ -1133,8 +1119,8 @@ rsyslog__ferm__dependent_rules:
     role: 'rsyslog'
     accept_any: False
     rule_state: '{{ "present"
-                    if (rsyslog__enabled|bool and rsyslog__deploy_state != "absent" and
-                        rsyslog__remote_enabled|bool)
+                    if (rsyslog__enabled | bool and rsyslog__deploy_state != "absent" and
+                        rsyslog__remote_enabled | bool)
                     else "absent" }}'
 
   - name: 'syslog-tls'
@@ -1144,8 +1130,8 @@ rsyslog__ferm__dependent_rules:
     role: 'rsyslog'
     accept_any: False
     rule_state: '{{ "present"
-                    if (rsyslog__enabled|bool and rsyslog__deploy_state != "absent" and
-                        rsyslog__remote_enabled|bool)
+                    if (rsyslog__enabled | bool and rsyslog__deploy_state != "absent" and
+                        rsyslog__remote_enabled | bool)
                     else "absent" }}'
 
                                                                    # ]]]
@@ -1159,8 +1145,8 @@ rsyslog__logrotate__dependent_config:
     options: |
       su root {{ rsyslog__group }}
     state: '{{ "present"
-                if (rsyslog__enabled|bool and rsyslog__deploy_state != "absent" and
-                    rsyslog__unprivileged|bool)
+                if (rsyslog__enabled | bool and rsyslog__deploy_state != "absent" and
+                    rsyslog__unprivileged | bool)
                 else "absent" }}'
 
   - filename: 'rsyslog'
@@ -1171,6 +1157,7 @@ rsyslog__logrotate__dependent_config:
         options: |
           rotate {{ rsyslog__rotation_count_system }}
           {{ rsyslog__rotation_period_system }}
+          maxsize 1G
           missingok
           notifempty
           delaycompress
@@ -1178,16 +1165,16 @@ rsyslog__logrotate__dependent_config:
         postrotate: |
           {{ "invoke-rc.d rsyslog rotate > /dev/null"
             if (ansible_distribution_release in
-                 ([ "wheezy", "jessie", "stretch",
-                    "precise", "trusty" ]))
+                 (["stretch", "trusty"]))
             else "/usr/lib/rsyslog/rsyslog-rotate" }}
 
       - logs: '{{ (rsyslog__default_logfiles
                    + rsyslog__logfiles)
-                  | difference(["/var/log/syslog"]) }}'
+                  | difference(["/var/log/syslog"]) | sort }}'
         options: |
           rotate {{ rsyslog__rotation_count_system }}
           {{ rsyslog__rotation_period_system }}
+          maxsize 1G
           missingok
           notifempty
           compress
@@ -1196,11 +1183,10 @@ rsyslog__logrotate__dependent_config:
         postrotate: |
           {{ "invoke-rc.d rsyslog rotate > /dev/null"
             if (ansible_distribution_release in
-                 ([ "wheezy", "jessie", "stretch",
-                    "precise", "trusty" ]))
+                 (["stretch", "trusty"]))
             else "/usr/lib/rsyslog/rsyslog-rotate" }}
     state: '{{ "present"
-                if (rsyslog__enabled|bool and rsyslog__deploy_state != "absent")
+                if (rsyslog__enabled | bool and rsyslog__deploy_state != "absent")
                 else "absent" }}'
 
   - filename: 'rsyslog-remote'
@@ -1208,6 +1194,7 @@ rsyslog__logrotate__dependent_config:
     options: |
       rotate {{ rsyslog__rotation_count_remote }}
       {{ rsyslog__rotation_period_remote }}
+      maxsize 1G
       missingok
       notifempty
       compress
@@ -1216,12 +1203,11 @@ rsyslog__logrotate__dependent_config:
     postrotate: |
       {{ "invoke-rc.d rsyslog rotate > /dev/null"
         if (ansible_distribution_release in
-             ([ "wheezy", "jessie", "stretch",
-                "precise", "trusty" ]))
+             (["stretch", "trusty"]))
         else "/usr/lib/rsyslog/rsyslog-rotate" }}
     state: '{{ "present"
-                if (rsyslog__enabled|bool and rsyslog__deploy_state != "absent" and
-                    rsyslog__remote_enabled|bool)
+                if (rsyslog__enabled | bool and rsyslog__deploy_state != "absent" and
+                    rsyslog__remote_enabled | bool)
                 else "absent" }}'
 
                                                                    # ]]]
@@ -1234,14 +1220,14 @@ rsyslog__dpkg_cleanup__dependent_packages:
     revert_files:
       - '/etc/rsyslog.conf'
       - '/etc/logrotate.d/rsyslog'
-      - '{{ rsyslog__combined_rules | flatten | parse_kv_items
+      - '{{ rsyslog__combined_rules | flatten | debops.debops.parse_kv_items
             | selectattr("divert", "defined") | list
             | selectattr("divert", "equalto", True) | list
             | map(attribute="name") | list
             | map("regex_replace", "^(.*)$", "/etc/rsyslog.d/\1") | list }}'
     remove_files:
       - '/etc/logrotate.d/rsyslog-remote'
-      - '{{ rsyslog__combined_rules | flatten | parse_kv_items
+      - '{{ rsyslog__combined_rules | flatten | debops.debops.parse_kv_items
             | selectattr("divert", "undefined") | list
             | map(attribute="name") | list
             | map("regex_replace", "^(.*)$", "/etc/rsyslog.d/\1") | list }}'

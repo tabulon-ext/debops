@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Configure yadm, Yet Another Dotfiles Manager
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_all_hosts', 'debops_service_yadm' ]
   become: True
 
@@ -14,6 +13,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring', 'role::yadm' ]

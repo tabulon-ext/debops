@@ -1,5 +1,5 @@
-.. Copyright (C) 2017 Maciej Delmanowski <drybjed@gmail.com>
-.. Copyright (C) 2017 DebOps <https://debops.org/>
+.. Copyright (C) 2017-2024 Maciej Delmanowski <drybjed@gmail.com>
+.. Copyright (C) 2017-2024 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-only
 
 Default variable details
@@ -185,7 +185,7 @@ rabbitmq_server__plugins
 ------------------------
 
 The ``rabbitmq_server__*_plugins`` lists can be used to enable or disable
-RabbitMQ plugins conditionally. You can find the available plugins on a givem
+RabbitMQ plugins conditionally. You can find the available plugins on a given
 host by running the command:
 
 .. code-block:: console
@@ -277,6 +277,52 @@ Create an administrator account and a regular user account:
        write_priv: '.*'
 
 
+.. _rabbitmq_server__ref_user_limits:
+
+rabbitmq_server__user_limits
+-----------------------------
+
+The ``rabbitmq_server__*_user_limits`` list variables can be used to configure
+`RabbitMQ per-user connection limits`__ using Ansible. Each list entry is a YAML
+dictionary with specific parameters. The parameter names are the same as the
+``community.rabbitmq.rabbitmq_user_limits`` Ansible module.
+
+.. __: https://www.rabbitmq.com/docs/user-limits
+
+The available parameters:
+
+``user``
+  Required. Name of the RabbitMQ user to configure.
+
+``node``
+  Optional. Limit the user limits to a specific RabbitMQ node.
+
+``max_connections``
+  Optional. The maximum number of connections that can be open to a given
+  RabbitMQ user.
+
+``max_channels``
+  Optional. The maximum number of channels that can be open to a given RabbitMQ
+  user.
+
+``state``
+  Optional. If not specified or ``present``, the user limit will be created.
+  If ``absent``, the user limit will be removed.
+
+Examples
+~~~~~~~~
+
+Define limits for a specific user account:
+
+.. code-block:: yaml
+
+   rabbitmq_server__user_limits:
+
+     - user: 'admin_account'
+       max_connections: 1000
+       max_channels: 100
+
+
 .. _rabbitmq_server__ref_vhosts:
 
 rabbitmq_server__vhosts
@@ -298,6 +344,14 @@ module. Some more common parameters:
 ``tracing``
   Optional. Enable message tracing in a given virtual host.
 
+``default_queue_type``
+  Optional. Sets the default queue type for the virtual host using
+  ``rabbitmqctl update_vhost_metadata --default-queue-type``. Supported values
+  on RabbitMQ 3.13+: ``classic``, ``quorum``, ``stream``. When unset, RabbitMQ
+  uses its built-in default (``classic`` unless overridden on the cluster).
+  Useful on RabbitMQ 4.x where ``quorum`` queues can be made the default
+  without resorting to policies.
+
 Examples
 ~~~~~~~~
 
@@ -313,6 +367,370 @@ Create a set of virtual hosts:
 
      - name: 'vhost3'
        state: 'absent'
+
+     - name: 'vhost4'
+       default_queue_type: 'quorum'
+
+
+.. _rabbitmq_server__ref_vhost_limits:
+
+rabbitmq_server__vhost_limits
+-----------------------------
+
+The ``rabbitmq_server__*_vhost_limits`` list variables can be used to configure
+`RabbitMQ virtual host limits`__ using Ansible. Each list entry is a YAML
+dictionary with specific parameters. The parameter names are the same as the
+``community.rabbitmq.rabbitmq_vhost_limits`` Ansible module. Available
+parameters:
+
+``vhost``
+  Required. Name of the RabbitMQ virtual host to configure. The default virtual
+  host is named ``/``.
+
+``node``
+  Optional. Limit the virtual host limits to a specific RabbitMQ node.
+
+``max_connections``
+  Optional. The maximum number of connections that can be open to a given
+  RabbitMQ virtual host.
+
+``max_queues``
+  Optional. The maximum number of queues that can be created in a given RabbitMQ
+  virtual host.
+
+``state``
+  Optional. If not specified or ``present``, the virtual host limit will be
+  created. If ``absent``, the virtual host limit will be removed.
+
+.. __: https://www.rabbitmq.com/docs/vhosts#limits
+
+Examples
+~~~~~~~~
+
+Define virtual host limits for the default vhost:
+
+.. code-block:: yaml
+
+   rabbitmq_server__vhost_limits:
+
+     - vhost: '/'
+       max_connections: 1000
+       max_queues: 100
+
+Reset limists on the default vrrtual host:
+
+.. code-block:: yaml
+
+   rabbitmq_server__vhost_limits:
+
+     - vhost: '/'
+       state: 'absent'
+
+
+.. _rabbitmq_server__ref_exchanges:
+
+rabbitmq_server__exchanges
+--------------------------
+
+The ``rabbitmq_server__*_exchanges`` list variables can be used to manage
+`RabbitMQ exchanges`__. Each list entry is a YAML dictionary with specific
+parameters. The parameter names are the same as the
+``community.rabbitmq.rabbitmq_exchange`` Ansible module.
+
+.. __: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
+
+List of supported parameters:
+
+``name``
+  Required. The name of a given RabbitMQ exchange.
+
+``vhost``
+  Optional. Specify the RabbitMQ virtual host to which a given exchange applies.
+
+``exchange_type``
+  Optional. The type of a given RabbitMQ exchange. Supported choices:
+  ``direct``, ``fanout``, ``topic``, ``headers``, ``x-consistent-hash``,
+  ``x-delayed-message``, ``x-random``, ``x-recent-history``.
+
+``durable``
+  Optional. If not specified or ``True``, the exchange will be durable. If
+  ``False``, the exchange will be transient.
+
+``auto_delete``
+  Optional. If not specified or ``False``, the exchange will not be deleted
+  when the last queue is unbound from it. If ``True``, the exchange will be
+  deleted when the last queue is unbound from it.
+
+``internal``
+  Optional. If not specified or ``False``, the exchange will be a regular
+  exchange. If ``True``, the exchange will be an internal exchange, only
+  available for other exchanges.
+
+``arguments``
+  Optional. A YAML dictionary with additional arguments to set for a given
+  exchange.
+
+``state``
+  Optional. If not specified or ``present``, the exchange will be created. If
+  ``absent``, the exchange will be removed.
+
+Examples
+~~~~~~~~
+
+Create a set of RabbitMQ exchanges:
+
+.. code-block:: yaml
+
+   rabbitmq_server__exchanges:
+
+     - name: 'exchange1'
+       exchange_type: 'fanout'
+       durable: False
+       auto_delete: True
+
+     - name: 'exchange2'
+       exchange_type: 'topic'
+       durable: True
+       auto_delete: False
+
+
+.. _rabbitmq_server__ref_queues:
+
+rabbitmq_server__queues
+-----------------------
+
+The ``rabbitmq_server__*_queues`` list variables can be used to manage `RabbitMQ
+queues`__. Each list entry is a YAML dictionary with specific parameters. The
+parameter names are the same as the ``community.rabbitmq.rabbitmq_queue``
+Ansible module.
+
+.. __: https://www.rabbitmq.com/tutorials/amqp-concepts.html#queues
+
+List of supported parameters:
+
+``name``
+  Required. The name of a given RabbitMQ queue.
+
+``vhost``
+  Optional. Specify the RabbitMQ virtual host to which a given queue applies.
+
+``durable``
+  Optional. If not specified or ``True``, the queue will be durable. If
+  ``False``, the queue will be transient.
+
+``auto_delete``
+  Optional. If not specified or ``False``, the queue will not be deleted when
+  the last consumer is removed. If ``True``, the queue will be deleted when the
+  last consumer is removed.
+
+``auto_expires``
+  Optional. The time in milliseconds after which the queue will be deleted if
+  it is not used.
+
+``dead_letter_exchange``
+  Optional. The name of a dead-letter exchange to which messages will be
+  republished if they are rejected or expire.
+
+``dead_letter_routing_key``
+  Optional. The routing key to use when republishing messages to the dead-letter
+  exchange.
+
+``max_length``
+  Optional. The maximum number of messages that the queue will hold.
+
+``max_priority``
+  Optional. The maximum priority of messages that the queue will hold.
+
+``message_ttl``
+  Optional. The time in milliseconds after which a message will be removed from
+  the queue if it is not consumed.
+
+``arguments``
+  Optional. A YAML dictionary with additional arguments to set for a given
+  queue.
+
+``state``
+  Optional. If not specified or ``present``, the queue will be created. If
+  ``absent``, the queue will be removed.
+
+Examples
+~~~~~~~~
+
+Create a set of RabbitMQ queues:
+
+.. code-block:: yaml
+
+   rabbitmq_server__queues:
+
+     - name: 'queue1'
+       durable: False
+       auto_delete: True
+       state: 'present'
+
+     - name: 'queue2'
+       durable: True
+       auto_delete: False
+       state: 'present'
+
+
+.. _rabbitmq_server__ref_bindings:
+
+rabbitmq_server__bindings
+-------------------------
+
+The ``rabbitmq_server__*_bindings`` list variables can be used to manage
+`RabbitMQ bindings`__. Each list entry is a YAML dictionary with specific
+parameters. The parameter names are the same as the
+``community.rabbitmq.rabbitmq_binding`` Ansible module.
+
+.. __: https://www.rabbitmq.com/tutorials/amqp-concepts.html#bindings
+
+List of parameters:
+
+``name``
+  Required. The name of a given RabbitMQ exchange which will be the source of a
+  given binding.
+
+``destination``
+  Required. The name of a given RabbitMQ queue or another exchange which will be
+  a destination of a given binding.
+
+``destination_type``
+  Required. The type of a given destination. Supported choices: ``queue``,
+  ``exchange``.
+
+``vhost``
+  Optional. Specify the RabbitMQ virtual host to which a given binding applies.
+
+``routing_key``
+  Optional. The routing key to use when binding a queue to an exchange.
+
+``arguments``
+  Optional. A YAML dictionary with additional arguments to set for a given
+  binding.
+
+``state``
+  Optional. If not specified or ``present``, the binding will be created. If
+  ``absent``, the binding will be removed.
+
+Examples
+~~~~~~~~
+
+Create a set of RabbitMQ bindings:
+
+.. code-block:: yaml
+
+   rabbitmq_server__bindings:
+
+     - name: 'exchange1'
+       destination: 'queue1'
+       destination_type: 'queue'
+       routing_key: 'example'
+       state: 'present'
+
+     - name: 'exchange2'
+       destination: 'exchange1'
+       destination_type: 'exchange'
+       state: 'present'
+
+
+.. _rabbitmq_server__ref_feature_flags:
+
+rabbitmq_server__feature_flags
+------------------------------
+
+The ``rabbitmq_server__*_feature_flags`` list variables can be used to manage
+`RabbitMQ feature flags`__. Each list entry is a YAML dictionary with specific
+parameters. The parameter names are the same as the
+``community.rabbitmq.rabbitmq_feature_flag`` Ansible module.
+
+.. __: https://www.rabbitmq.com/feature-flags.html
+
+Supported parameters:
+
+``name``
+  Required. The name of a given RabbitMQ feature flag.
+
+``node``
+  Optional. The name of a RabbitMQ node to which a given feature flag applies.
+
+``opt_in``
+  Optional. Boolean. If ``True``, the role enables the feature flag via
+  ``rabbitmqctl -q enable_feature_flag --opt-in`` instead of the
+  ``community.rabbitmq.rabbitmq_feature_flag`` module. Required for flags
+  that can only be activated explicitly by the operator, for example
+  ``khepri_db`` on RabbitMQ 4.0/4.1. Default: ``False``.
+
+Entries referencing feature flags that have been promoted to "required"
+status in the running RabbitMQ version (and therefore no longer appear in
+``rabbitmqctl list_feature_flags``) are silently skipped so inventories
+written for older RabbitMQ versions stay idempotent after a major upgrade.
+Unknown flag names (typos in still-toggleable flags) continue to fail the
+play.
+
+Examples
+~~~~~~~~
+
+Enable the ``maintenance_mode_status`` feature flag on a specific Erlang node:
+
+.. code-block:: yaml
+
+   rabbitmq_server__feature_flags:
+
+     - name: 'maintenance_mode_status'
+       node: 'rabbit@node1'
+
+Enable the ``khepri_db`` opt-in feature flag cluster-wide:
+
+.. code-block:: yaml
+
+   rabbitmq_server__feature_flags:
+
+     - name: 'khepri_db'
+       opt_in: True
+
+
+.. _rabbitmq_server__ref_global_parameters:
+
+rabbitmq_server__global_parameters
+----------------------------------
+
+The ``rabbitmq_server__*_global_parameters`` list variables can be used to
+manage `RabbitMQ global parameters`__, defined for the entire cluster. Each list
+entry is a YAML dictionary with specific global parameters. The parameter names
+are the same as the ``community.rabbitmq.rabbitmq_global_parameter`` Ansible
+module.
+
+.. __: https://www.rabbitmq.com/docs/parameters#parameter-management
+
+Configuration entry parameters:
+
+``name``
+  Required. The name of a given RabbitMQ parameter being set.
+
+``value``
+  The value of a given parameter in a JSON format. The values are usually
+  quoted using single quotes and contain double-quotes.
+
+``node``
+  Optional. The name of a RabbitMQ node to which a given parameter applies.
+
+``state``
+  Optional. If not specified or ``present``, the parameter will be created.
+  If ``absent``, the parameter will be removed.
+
+Examples
+~~~~~~~~
+
+Set the value of the ``cluster_name`` global parameter:
+
+.. code-block:: yaml
+
+   rabbitmq_server__global_parameters:
+
+     - name: 'cluster_name'
+       value: '"my-cluster"'
+       state: 'present'
 
 
 .. _rabbitmq_server__ref_parameters:
@@ -408,3 +826,115 @@ Create a set of RabbitMQ policies:
        pattern: '.*'
        tags:
          'ha-mode': 'all'
+
+
+.. _rabbitmq_server__ref_cluster_autojoin:
+
+rabbitmq_server__cluster_autojoin
+---------------------------------
+
+The role can form the RabbitMQ cluster automatically. When
+``rabbitmq_server__cluster_autojoin`` is ``True``, each non-seed node runs
+``rabbitmqctl reset`` and ``rabbitmqctl join_cluster`` against the seed
+node after the role has applied its configuration and the
+``Restart rabbitmq-server`` handler has fired. Nodes that are already
+clustered with the seed are left alone.
+
+Automatic cluster formation is opt-in (default: ``False``) so that upgrading
+the role on existing deployments never alters cluster membership on its
+own. In particular, several independent single-node RabbitMQ instances that
+share the ``debops_service_rabbitmq_server`` inventory group will remain
+independent unless you explicitly enable auto-join on the groups that
+should form a cluster.
+
+``rabbitmq_server__cluster_hosts``
+  Ordered list of cluster members. Defaults to the
+  ``debops_service_rabbitmq_server`` inventory group, sorted alphabetically.
+  The first entry is used as the seed. Override in the inventory when you
+  need an explicit order.
+
+  .. warning::
+
+     The default pulls *every* host from ``debops_service_rabbitmq_server``.
+     When the inventory hosts more than one independent RabbitMQ cluster
+     under that umbrella group, you **must** narrow this variable to the
+     members of the individual cluster in the matching ``group_vars``
+     (see the "Running multiple independent clusters" example below).
+     Otherwise the seed election and, if enabled, the ``join_cluster`` step
+     will try to merge the clusters into one.
+
+``rabbitmq_server__cluster_seed_node``
+  Hostname (without the ``rabbit@`` prefix) of the seed node. Defaults to
+  the first entry of ``rabbitmq_server__cluster_hosts``. Non-seed members
+  always join this node.
+
+``rabbitmq_server__cluster_autojoin``
+  Master switch for automatic cluster formation. Default: ``False`` (opt-in).
+  Set to ``True`` on the inventory group(s) that should form or maintain
+  a real cluster. Keeping it ``False`` preserves the legacy manual workflow
+  (``rabbitmqctl join_cluster`` executed outside of Ansible) and is the
+  safe choice for deployments that run several independent RabbitMQ
+  instances under one inventory group.
+
+The ``reset + join_cluster`` sequence is guarded by an ``assert`` that the
+current node's ``disk_nodes`` list contains only itself. A node which is
+already a member of a different cluster is never reset; instead the play
+fails with a clear error and requires manual intervention or an opt-out.
+
+Examples
+~~~~~~~~
+
+Enable automatic cluster formation for a single cluster that covers the
+whole ``debops_service_rabbitmq_server`` group:
+
+.. code-block:: yaml
+
+   # group_vars/debops_service_rabbitmq_server/rabbitmq_server.yml
+   rabbitmq_server__cluster_autojoin: True
+
+Pick an explicit seed (without changing alphabetical order of the group):
+
+.. code-block:: yaml
+
+   rabbitmq_server__cluster_seed_node: 'rabbitmq-primary.example.org'
+
+Disable the feature on a host that should not join the cluster:
+
+.. code-block:: yaml
+
+   rabbitmq_server__cluster_autojoin: False
+
+Running multiple independent clusters under one inventory
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+When a single DebOps inventory manages several RabbitMQ clusters, split
+them into dedicated inventory groups and point
+``rabbitmq_server__cluster_hosts`` at the matching group in each
+``group_vars`` subtree. ``debops_service_rabbitmq_server`` stays as the
+umbrella group so the role is still applied to every cluster member.
+
+.. code-block:: ini
+
+   # inventory/hosts
+   [rabbitmq_cluster_a]
+   mq-a1
+   mq-a2
+   mq-a3
+
+   [rabbitmq_cluster_b]
+   mq-b1
+   mq-b2
+
+   [debops_service_rabbitmq_server:children]
+   rabbitmq_cluster_a
+   rabbitmq_cluster_b
+
+.. code-block:: yaml
+
+   # group_vars/rabbitmq_cluster_a/rabbitmq_server.yml
+   rabbitmq_server__cluster_autojoin: True
+   rabbitmq_server__cluster_hosts: '{{ groups["rabbitmq_cluster_a"] | sort }}'
+
+   # group_vars/rabbitmq_cluster_b/rabbitmq_server.yml
+   rabbitmq_server__cluster_autojoin: True
+   rabbitmq_server__cluster_hosts: '{{ groups["rabbitmq_cluster_b"] | sort }}'

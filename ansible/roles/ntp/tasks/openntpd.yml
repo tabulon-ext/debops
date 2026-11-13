@@ -5,17 +5,15 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Divert OpenNTPd configuration files
-  command: dpkg-divert --quiet --local --divert {{ item }}.dpkg-divert
-           --rename {{ item }}
-  args:
-    creates: '{{ item }}.dpkg-divert'
-  with_items:
+  debops.debops.dpkg_divert:
+    path: '{{ item }}'
+  loop:
     - '/etc/default/openntpd'
     - '/etc/openntpd/ntpd.conf'
     - '/etc/network/if-up.d/openntpd'
 
 - name: Configure OpenNTPd
-  template:
+  ansible.builtin.template:
     src: '{{ item.name }}.j2'
     dest: '/{{ item.name }}'
     owner: 'root'

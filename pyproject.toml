@@ -1,0 +1,25 @@
+# Copyright (C) 2023-2023 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+[tool.codespell]
+skip = "./.git,./docs/_build,./docs/ansible/roles/*/defaults/*,.venv,*/includes/global.rst,*LICENSES*,CREDITS"
+# 'alse' is to ignore literal regex '[Ff]alse'
+# hass is home assistant contraction
+# aNULL is used as a cipher name in SSL
+# fpr is the fingerprint field name in the gpg --with-colons output
+ignore-words-list = "referer, referers, alse, keyserver, keyservers, hass, anull, falsy, fpr"
+exclude-file = ".codespell.exclude"
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: exercises several components with real external tools",
+    "encfs: the test needs a working EncFS mount (checked at runtime)",
+]
+
+[tool.mutmut]
+source_paths = ["src/debops"]
+also_copy = ["src/tests", "CHANGELOG.rst", "ansible", "LICENSES", "lib"]
+pytest_add_cli_args_test_selection = ["-m", "not integration", "src/tests"]

@@ -18,23 +18,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Debops.  If not, see <https://www.gnu.org/licenses/>.
-
-import os
-
-try:
-    from debops import *
-    from debops.cmds import *
-except ImportError:
-    pass
-
-try:
-    from ansible.plugins.lookup import LookupBase
-except ImportError:
-    LookupBase = object
-
-from distutils.version import LooseVersion
-from ansible import __version__ as __ansible_version__
-
 '''
 
 This file implements the `task_src` lookup filter for Ansible.  In difference
@@ -49,7 +32,48 @@ __author__ = "Robert Chady <rchady@sitepen.com>"
 __copyright__ = "Copyright 2015 by Robert Chady <rchady@sitepen.com>"
 __license__ = "GNU General Public LIcense version 3 (GPL v3) or later"
 
-conf_tpl_paths = 'task-paths'
+
+import os
+
+try:
+    import debops
+    # Import the version module explicitly: the package root no
+    # longer imports its submodules transitively, so the attribute
+    # exists only once the submodule itself is imported
+    import debops.__version__
+    debops_version = debops.__version__.__version__
+    conf_section = 'override_paths'
+    conf_key = 'tasks_path'
+    # The configuration moved under debops.core in debops 3.5;
+    # fall back to the flat layout when an older Python package
+    # provides the collection
+    try:
+        from debops.core.config import Configuration
+        from debops.core.projectdir import ProjectDir
+    except ImportError:
+        from debops.config import Configuration
+        from debops.projectdir import ProjectDir
+except AttributeError:
+    try:
+        from debops import *
+        from debops.cmds import *
+        debops_version = '2.3.0'
+        conf_section = 'paths'
+        conf_key = 'task-paths'
+    except ImportError:
+        pass
+except ModuleNotFoundError:
+    conf_section = ''
+    conf_key = ''
+    pass
+
+try:
+    from ansible.plugins.lookup import LookupBase
+except ImportError:
+    LookupBase = object
+
+from distutils.version import LooseVersion
+from ansible import __version__ as __ansible_version__
 
 
 if LooseVersion(__ansible_version__) < LooseVersion("2.0"):
@@ -75,21 +99,121 @@ if LooseVersion(__ansible_version__) < LooseVersion("2.0"):
                 terms = [terms]
 
             try:
-                project_root = find_debops_project(required=False)
-                config = read_config(project_root)
+                project_config = Configuration()
+                project_dir = ProjectDir(path=os.getcwd(), cwd=os.getcwd(),
+                                         config=project_config)
+                project_root = project_dir.path
+                if project_dir.config.get(['project', 'type']) == 'modern':
+                    config = project_dir.config.get([])
+                else:
+                    config = project_dir.config.get(['views', 'system'])
             except NameError:
+                try:
+                    project_root = find_debops_project(required=False)
+                    config = read_config(project_root)
+                except NameError:
+                    pass
+            except NotADirectoryError:
+                # This is not a DebOps project directory, so continue as normal
                 pass
 
-            if ('paths' in config and
-                    conf_tpl_paths in config['paths']):
+            if conf_section in config and conf_key in config[conf_section]:
                 custom_places = (
-                        config['paths'][conf_tpl_paths].split(':'))
+                        config[conf_section][conf_key].split(':'))
                 for custom_path in custom_places:
                     if os.path.isabs(custom_path):
                         places.append(custom_path)
                     else:
                         places.append(os.path.join(
                             project_root, custom_path))
+
+            # Fallback when the debops Python module is not available
+            # (e.g. installed via Ansible Galaxy). Read override paths
+            # directly from the global DebOps configuration directories.
+            if not conf_section:
+                _found = None
+
+                for _ext in [".yaml", ".yml", ".json", ".toml"]:
+                    _project_path = os.path.join(os.getcwd(), ".debops" + _ext)
+                    if os.path.isfile(_project_path):
+                        try:
+                            if _project_path.endswith(".json"):
+                                with open(_project_path) as _fh:
+                                    _parsed = json.load(_fh)
+                            elif _project_path.endswith(".toml"):
+                                import tomllib as _tl
+                                with open(_project_path, "rb") as _fh:
+                                    _parsed = _tl.load(_fh)
+                            elif _project_path.endswith((".yaml", ".yml")):
+                                import yaml as _yl
+                                with open(_project_path) as _fh:
+                                    _parsed = _yl.safe_load(_fh)
+                            else:
+                                continue
+                        except Exception:
+                            continue
+                        if isinstance(_parsed, dict):
+                            _override_value = _parsed.get(
+                                "override_paths", {}).get("tasks_path")
+                            if _override_value:
+                                for _path_item in _override_value.split(":"):
+                                    if os.path.isabs(_path_item):
+                                        places.append(_path_item)
+                                    else:
+                                        places.append(
+                                            os.path.join(os.getcwd(), _path_item))
+                                _found = _override_value
+                        break
+
+                if not _found:
+                    _xdg = os.environ.get(
+                        "XDG_CONFIG_HOME",
+                        os.path.join(os.path.expanduser("~"), ".config"))
+                    _cfg_dirs = [
+                        os.path.join(_xdg, "debops", "conf.d"),
+                        "/etc/debops/conf.d",
+                        "/usr/local/lib/debops/conf.d",
+                        "/usr/lib/debops/conf.d",
+                    ]
+                    for _cfg_dir in _cfg_dirs:
+                        if not os.path.isdir(_cfg_dir):
+                            continue
+                        for _filename in sorted(os.listdir(_cfg_dir)):
+                            _filepath = os.path.join(_cfg_dir, _filename)
+                            if (_filename.startswith(".")
+                                    or not os.path.isfile(_filepath)):
+                                continue
+                            try:
+                                if _filename.endswith(".json"):
+                                    with open(_filepath) as _fh:
+                                        _parsed = json.load(_fh)
+                                elif _filename.endswith(".toml"):
+                                    import tomllib as _tl
+                                    with open(_filepath, "rb") as _fh:
+                                        _parsed = _tl.load(_fh)
+                                elif _filename.endswith((".yaml", ".yml")):
+                                    import yaml as _yl
+                                    with open(_filepath) as _fh:
+                                        _parsed = _yl.safe_load(_fh)
+                                else:
+                                    continue
+                            except Exception:
+                                continue
+                            if isinstance(_parsed, dict):
+                                _override_value = _parsed.get(
+                                    "override_paths", {}).get("tasks_path")
+                                if _override_value:
+                                    _found = _override_value
+                                    break
+                        if _found:
+                            break
+                    if _found:
+                        for _path_item in _found.split(":"):
+                            if os.path.isabs(_path_item):
+                                places.append(_path_item)
+                            else:
+                                places.append(
+                                    os.path.join(os.getcwd(), _path_item))
 
             for term in terms:
                 if '_original_file' in inject:
@@ -127,21 +251,121 @@ else:
                 terms = [terms]
 
             try:
-                project_root = find_debops_project(required=False)
-                config = read_config(project_root)
-
+                project_config = Configuration()
+                project_dir = ProjectDir(path=os.getcwd(), cwd=os.getcwd(),
+                                         config=project_config)
+                project_root = project_dir.path
+                if project_dir.config.get(['project', 'type']) == 'modern':
+                    config = project_dir.config.get([])
+                else:
+                    config = project_dir.config.get(['views', 'system'])
             except NameError:
+                try:
+                    project_root = find_debops_project(required=False)
+                    config = read_config(project_root)
+                except NameError:
+                    pass
+            except NotADirectoryError:
+                # This is not a DebOps project directory, so continue as normal
                 pass
 
-            if 'paths' in config and conf_tpl_paths in config['paths']:
+            if conf_section in config and conf_key in config[conf_section]:
                 custom_places = (
-                        config['paths'][conf_tpl_paths].split(':'))
+                        config[conf_section][conf_key].split(':'))
                 for custom_path in custom_places:
                     if os.path.isabs(custom_path):
                         places.append(custom_path)
                     else:
                         places.append(os.path.join(
                             project_root, custom_path))
+
+            # Fallback when the debops Python module is not available
+            # (e.g. installed via Ansible Galaxy). Read override paths
+            # directly from the global DebOps configuration directories.
+            if not conf_section:
+                _found = None
+
+                for _ext in [".yaml", ".yml", ".json", ".toml"]:
+                    _project_path = os.path.join(os.getcwd(), ".debops" + _ext)
+                    if os.path.isfile(_project_path):
+                        try:
+                            if _project_path.endswith(".json"):
+                                with open(_project_path) as _fh:
+                                    _parsed = json.load(_fh)
+                            elif _project_path.endswith(".toml"):
+                                import tomllib as _tl
+                                with open(_project_path, "rb") as _fh:
+                                    _parsed = _tl.load(_fh)
+                            elif _project_path.endswith((".yaml", ".yml")):
+                                import yaml as _yl
+                                with open(_project_path) as _fh:
+                                    _parsed = _yl.safe_load(_fh)
+                            else:
+                                continue
+                        except Exception:
+                            continue
+                        if isinstance(_parsed, dict):
+                            _override_value = _parsed.get(
+                                "override_paths", {}).get("tasks_path")
+                            if _override_value:
+                                for _path_item in _override_value.split(":"):
+                                    if os.path.isabs(_path_item):
+                                        places.append(_path_item)
+                                    else:
+                                        places.append(
+                                            os.path.join(os.getcwd(), _path_item))
+                                _found = _override_value
+                        break
+
+                if not _found:
+                    _xdg = os.environ.get(
+                        "XDG_CONFIG_HOME",
+                        os.path.join(os.path.expanduser("~"), ".config"))
+                    _cfg_dirs = [
+                        os.path.join(_xdg, "debops", "conf.d"),
+                        "/etc/debops/conf.d",
+                        "/usr/local/lib/debops/conf.d",
+                        "/usr/lib/debops/conf.d",
+                    ]
+                    for _cfg_dir in _cfg_dirs:
+                        if not os.path.isdir(_cfg_dir):
+                            continue
+                        for _filename in sorted(os.listdir(_cfg_dir)):
+                            _filepath = os.path.join(_cfg_dir, _filename)
+                            if (_filename.startswith(".")
+                                    or not os.path.isfile(_filepath)):
+                                continue
+                            try:
+                                if _filename.endswith(".json"):
+                                    with open(_filepath) as _fh:
+                                        _parsed = json.load(_fh)
+                                elif _filename.endswith(".toml"):
+                                    import tomllib as _tl
+                                    with open(_filepath, "rb") as _fh:
+                                        _parsed = _tl.load(_fh)
+                                elif _filename.endswith((".yaml", ".yml")):
+                                    import yaml as _yl
+                                    with open(_filepath) as _fh:
+                                        _parsed = _yl.safe_load(_fh)
+                                else:
+                                    continue
+                            except Exception:
+                                continue
+                            if isinstance(_parsed, dict):
+                                _override_value = _parsed.get(
+                                    "override_paths", {}).get("tasks_path")
+                                if _override_value:
+                                    _found = _override_value
+                                    break
+                        if _found:
+                            break
+                    if _found:
+                        for _path_item in _found.split(":"):
+                            if os.path.isabs(_path_item):
+                                places.append(_path_item)
+                            else:
+                                places.append(
+                                    os.path.join(os.getcwd(), _path_item))
 
             for term in terms:
                 if 'role_path' in variables:

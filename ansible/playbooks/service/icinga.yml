@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Configure Icinga service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_icinga' ]
   become: True
 
@@ -16,12 +15,14 @@
   pre_tasks:
 
     - name: Prepare icinga environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'icinga'
         tasks_from: 'main_env'
       tags: [ 'role::icinga', 'role::secret' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring', 'role::icinga' ]
@@ -32,11 +33,6 @@
       tags: [ 'role::secret', 'role::icinga' ]
       secret__directories:
         - '{{ icinga__secret__directories | d([]) }}'
-
-    - role: apt_preferences
-      tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
-      apt_preferences__dependent_list:
-        - '{{ icinga__apt_preferences__dependent_list }}'
 
     - role: etc_services
       tags: [ 'role::etc_services', 'skip::etc_services' ]

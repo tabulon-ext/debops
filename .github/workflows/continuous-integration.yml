@@ -6,21 +6,30 @@
 name: Continuous Integration
 on: [ 'push', 'pull_request' ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   reuse-spdx:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
 
       - name: Prepare test environment
         run: |
-          pip3 install --user --upgrade pip wheel setuptools
-          pip3 install --user --upgrade reuse
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools reuse
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Check codebase with REUSE linter
         run: |
@@ -29,20 +38,22 @@ jobs:
           make check
 
   ansible-lint:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
 
       - name: Prepare test environment
         run: |
-          sudo apt-get remove --purge -yq ansible
-          pip3 install --upgrade pip wheel setuptools
-          pip3 install --user --upgrade ansible ansible-lint
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools Jinja2 netaddr ansible ansible-lint
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Verify playbook with ansible-lint
         run: |
@@ -51,20 +62,22 @@ jobs:
           make check
 
   ansible-playbook:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
 
       - name: Prepare test environment
         run: |
-          sudo apt-get remove --purge -yq ansible
-          pip3 install --user --upgrade pip wheel setuptools
-          pip3 install --user --upgrade ansible
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools Jinja2 ansible
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Check playbook syntax with ansible-playbook
         run: |
@@ -73,14 +86,14 @@ jobs:
           make check
 
   ansible-galaxy:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
         with:
           fetch-depth: 0
 
@@ -88,9 +101,12 @@ jobs:
         run: |
           sudo apt-get -qq update
           sudo apt-get -yq install pandoc pandoc-data
-          sudo apt-get remove --purge -yq ansible
-          pip3 install --user --upgrade pip wheel setuptools
-          pip3 install --user --upgrade ansible ansible-lint yamllint galaxy-importer reuse
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools Jinja2 ansible ansible-lint yamllint \
+            galaxy-importer reuse
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Build DebOps Collections for Ansible Galaxy
         env:
@@ -100,22 +116,26 @@ jobs:
           ansible --version
           ansible-lint --version
           make collection
+          make test-smoke-collection
           make check
 
   yamllint:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
 
       - name: Prepare test environment
         run: |
-          pip3 install --user --upgrade pip wheel setuptools
-          pip3 install --user --upgrade yamllint
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools yamllint
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Check codebase with yamllint
         run: |
@@ -124,19 +144,22 @@ jobs:
           make check
 
   pycodestyle:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
 
       - name: Prepare test environment
         run: |
-          pip3 install --user --upgrade pip wheel setuptools
-          pip3 install --user --upgrade pycodestyle
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools pycodestyle==2.15.0
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Check codebase with pycodestyle
         run: |
@@ -145,19 +168,23 @@ jobs:
           make check
 
   shellcheck:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
 
       - name: Prepare test environment
+        # shellcheck v0.9.0 has bugs triggered by DebOps, so we install newer
+        # version from upstream to avoid that
+        #run: |
+        #  sudo apt-get -qq update
+        #  sudo apt-get install -yq shellcheck
         run: |
-          sudo apt-get -qq update
-          sudo apt-get install -yq shellcheck
+          ./lib/tests/ci-install-shellcheck
 
       - name: Check shell scripts with shellcheck
         run: |
@@ -165,111 +192,243 @@ jobs:
           make test-shell
           make check
 
+  actionlint:
+    runs-on: 'ubuntu-latest'
+    steps:
+
+      - name: Add ~/.local/bin to $PATH
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
+
+      - name: Clone the repository
+        uses: 'actions/checkout@v7'
+
+      - name: Prepare test environment
+        run: './lib/tests/ci-install-actionlint'
+
+      - name: Check workflow files with actionlint
+        run: |
+          actionlint --version
+          make test-actionlint
+          make check
+
   docker-image:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
 
       - name: Build and verify Docker image
         # https://github.com/actions/runner/issues/241
         shell: 'script -q -e -c "bash {0}"'
+        env:
+          WITH_MANPAGES: '0'
         run: 'make test-docker-build'
 
-  debops-unit-test:
-    runs-on: 'ubuntu-20.04'
+  debops-python-matrix:
+    runs-on: 'ubuntu-latest'
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+        experimental: [false]
+        include:
+          - python-version: '3.14'
+            experimental: true
+          - python-version: '3.15'
+            experimental: true
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
         with:
           fetch-depth: 0
 
+      - name: Set up the matrix Python
+        uses: 'actions/setup-python@v7'
+        with:
+          python-version: '${{ matrix.python-version }}'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-ci.txt'
+
       - name: Prepare test environment
         run: |
-          pip3 install --user --upgrade pip wheel setuptools pypandoc
-          pip3 install --user --upgrade cov-core future nose2 unittest2 pyyaml
+          pip3 install --user -c requirements-ci.txt \
+            wheel setuptools pytest pytest-cov future pyyaml python-dotenv \
+            toml pyxdg jinja2 jsonschema distro GitPython
+          pip3 check
 
       - name: Run DebOps unit tests
         run: |
           make clean-tests
-          make test-debops-tools test-debops-ansible_plugins
-          make check
+          make test-unit
 
-  debops-wheel:
-    runs-on: 'ubuntu-20.04'
+  debops-test-coverage:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 30
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
         with:
           fetch-depth: 0
 
       - name: Prepare test environment
         run: |
           sudo apt-get -qq update
+          sudo apt-get -yq install git gnupg git-crypt
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools pytest pytest-cov ansible-core \
+            future pyyaml python-dotenv toml pyxdg jinja2 jsonschema \
+            distro GitPython
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Run unit and integration tests
+        run: |
+          make clean-tests
+          make test-coverage
+          make test-debops-ansible_plugins
+          make check
+
+  debops-wheel:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 120
+    steps:
+
+      - name: Add ~/.local/bin to $PATH
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
+
+      - name: Clone the repository
+        uses: 'actions/checkout@v7'
+        with:
+          fetch-depth: 0
+
+      - name: Set up the pinned Python
+        uses: 'actions/setup-python@v7'
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-ci.txt'
+
+      - name: Prepare test environment
+        run: |
+          sudo apt-get -qq update
           sudo apt-get -yq install pandoc pandoc-data graphviz
-          pip3 install --user --upgrade pip wheel setuptools pypandoc
-          pip3 install --user --upgrade sphinx sphinx-autobuild sphinx_rtd_theme
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools sphinx sphinx-autobuild \
+            sphinx-rtd-theme pypandoc PyYAML
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Build DebOps Python wheel package
         run: |
           make clean-tests
           make check
           make test-man wheel-quiet
-          pip3 install --user dist/*
-          pip3 list | grep debops
+          make test-metadata
+          make test-smoke
 
   debops-sdist:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 120
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
         with:
           fetch-depth: 0
+
+      - name: Set up the pinned Python
+        uses: 'actions/setup-python@v7'
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-ci.txt'
 
       - name: Prepare test environment
         run: |
           sudo apt-get -qq update
           sudo apt-get -yq install pandoc pandoc-data graphviz
-          pip3 install --user --upgrade pip wheel setuptools pypandoc
-          pip3 install --user --upgrade sphinx sphinx-autobuild sphinx_rtd_theme
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools sphinx sphinx-autobuild \
+            sphinx-rtd-theme pypandoc PyYAML
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Build DebOps Python sdist package
         run: |
           make clean-tests
           make check
           make test-man sdist-quiet
-          pip3 install --user dist/*
-          pip3 list | grep debops
+          make test-metadata
+          make test-smoke
 
-  documentation:
-    runs-on: 'ubuntu-20.04'
+  codespell:
+    runs-on: 'ubuntu-latest'
     steps:
 
       - name: Add ~/.local/bin to $PATH
-        run: 'printf "%s/.local/bin\n" "${HOME}" >> ${GITHUB_PATH}'
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
 
       - name: Clone the repository
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v7'
+        with:
+          fetch-depth: 0
+
+      - name: Prepare test environment
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools codespell tomli
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Check common misspellings using codespell
+        run: |
+          make clean-tests
+          make test-spell
+
+  documentation:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 120
+    steps:
+
+      - name: Add ~/.local/bin to $PATH
+        run: 'printf "%s/.local/bin\n" "${HOME}" >> "${GITHUB_PATH}"'
+
+      - name: Clone the repository
+        uses: 'actions/checkout@v7'
+
+      - name: Set up the pinned Python
+        uses: 'actions/setup-python@v7'
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-ci.txt'
 
       - name: Prepare test environment
         run: |
           sudo apt-get -qq update
           sudo apt-get install -yq graphviz
-          pip3 install --user --upgrade pip wheel setuptools
-          pip3 install --user --upgrade sphinx sphinx-autobuild sphinx_rtd-theme
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install -c requirements-ci.txt \
+            wheel setuptools sphinx sphinx-autobuild sphinx-rtd-theme
+          "${RUNNER_TEMP}/venv/bin/pip" check
+          echo "${RUNNER_TEMP}/venv/bin" >> "$GITHUB_PATH"
 
       - name: Build documentation site
         run: |

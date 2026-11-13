@@ -53,26 +53,27 @@ These filters are used to implement DebOps :ref:`universal_configuration`.
 See the user-facing documentation for the behaviors they are meant to
 facilitate.
 
-``parse_kv_config``
+``debops.debops.parse_kv_config``
   Parse a YAML list of dictionaries and output a sorted and expanded list of
   YAML dictionaries that contain a common set of dictionary keys. The filter
-  supports dynamic order of the entries using weight model, and can be used to
-  generate a configuration file which uses a key/value syntax with unique keys.
+  supports dynamic order of the entries using a zone-based weight model and
+  ``anchor_to`` for relative positioning. Can be used to generate a
+  configuration file which uses a key/value syntax with unique keys.
 
-  The ``parse_kv_config`` filter accepts this argument:
+  The ``debops.debops.parse_kv_config`` filter accepts this argument:
 
   ``name``
     Optional, String. Defaults to ``name``.
     Sets the name of the field to be used as the unique key.
 
 
-``parse_kv_items``
-  This is a wrapper for the ``parse_kv_config`` filter which can be used in the
-  looped Ansible tasks to manage multiple files with key/value syntax, or
-  generate a configuration file with multiple key/value configuration
-  structures.
+``debops.debops.parse_kv_items``
+  This is a wrapper for the ``debops.debops.parse_kv_config`` filter which can
+  be used in the looped Ansible tasks to manage multiple files with key/value
+  syntax, or generate a configuration file with multiple key/value
+  configuration structures.
 
-  The ``parse_kv_items`` filter accepts the following arguments:
+  The ``debops.debops.parse_kv_items`` filter accepts the following arguments:
 
   ``name``
     Optional, String. Defaults to ``name``.
@@ -84,7 +85,7 @@ facilitate.
 
     .. code-block:: jinja
 
-      {{ variable | parse_kv_items(defaults={'some_param': 'default_value'}) }}
+      {{ variable | debops.debops.parse_kv_items(defaults={'some_param': 'default_value'}) }}
 
   ``empty``
     Optional, Dict. Keys are fields which might be empty, values
@@ -100,7 +101,7 @@ facilitate.
 
     .. code-block:: jinja
 
-      {{ variable | parse_kv_items(
+      {{ variable | debops.debops.parse_kv_items(
         empty={
           'some_param':  'other_param',
           'empty_param': ['param1', 'param2']
@@ -138,13 +139,19 @@ Output mappings
 '''''''''''''''
 These values get populated in the ``parse_kv_*`` output mappings:
 
-- ``id``: The initial source order of the items in the input list ``* 10``.
-- ``state`` defaults to ``present``
+- ``id``: Sequential index assigned after sorting.
+- ``state`` defaults to ``present``.
 - ``weight``: The weight as defined in the source mapping. Defaults to ``0``.
-- ``real_weight``: Calculated from adding ``weight`` and ``id``.
-- ``section``: defaults to ``unknown``. Can be used by roles to split sections.
-- ``separator``: defaults to ``False``.
-  Can be used by roles to affect formatting.
+  The sign determines the item's zone: negative floats to the top, zero stays
+  in the middle (preserving source order), positive sinks to the bottom.
+- ``first_index``: Source position of the item's first occurrence, used for
+  within-zone ordering and as secondary sort for same-target anchors.
+
+Items can also define an ``anchor_to`` key referencing another item's name.
+This positions the item right before (if ``weight`` is negative) or right after
+(if ``weight`` is zero or positive) the referenced item, overriding zone-based
+placement. Multiple items anchored to the same target are ordered by their
+source position (``first_index``).
 
 Any other values in the mappings are preserved, so the ``parse_kv_*`` filters
 can be used to weigh and merge arbitrary of mappings, as long as they have a
@@ -162,28 +169,30 @@ Custom Ansible lookup plugins
 The role contains a set of custom Ansible lookup plugins which can be used in
 Ansible roles:
 
-``file_src``
+``debops.debops.file_src``
   This lookup plugin allows "sideloading" files to copy into roles without the
-  need to modify the roles themselves. It requires the ``debops`` Python module
-  to be installed and uses configuration in :file:`.debops.cfg` to get a list
-  of directories that are bases to look for custom files.
+  need to modify the roles themselves. It uses configuration in
+  :file:`.debops.cfg` (via the ``debops`` Python module) or the global DebOps
+  configuration directory (via an embedded fallback) to get a list of
+  directories that are bases to look for custom files.
 
   If a file in specified subdirectory is found in one of the base directories,
   its path will be returned to Ansible to use as a file source. If no custom
   files are found, the lookup plugin returns the original path which
   corresponds to the file included in the role itself.
 
-``lists``
+``debops.debops.lists``
   This lookup plugin implements the ``with_lists`` lookup. Similar to
   ``with_flattened`` lookup, the difference is the lists are not flattened all
   the way into a single list, therefore you can perform a "list of lists"
   tasks.
 
-``task_src``
+``debops.debops.task_src``
   This lookup plugin allows injection of custom Ansible tasks into roles without
-  the need to modify the roles themselves. It requires the ``debops`` Python
-  module to be installed and uses configuration in :file:`.debops.cfg` to get
-  a list of directories that are bases to look for a list of Ansible tasks.
+  the need to modify the roles themselves. It uses configuration in
+  :file:`.debops.cfg` (via the ``debops`` Python module) or the global DebOps
+  configuration directory (via an embedded fallback) to get a list of
+  directories that are bases to look for a list of Ansible tasks.
 
   If a file with list of tasks is found, they will be added to the Ansible
   playbook execution, usually as "pre" or "post" tasks at the beginning or end
@@ -192,13 +201,76 @@ Ansible roles:
   Ansible, avoiding the issue of missing task list. The roles that use this
   plugin need to be prepared for this usage beforehand.
 
-``template_src``
+``debops.debops.template_src``
   This lookup plugin allows "sideloading" Jinja templates into roles without
-  the need to modify the roles themselves. It requires the ``debops`` Python
-  module to be installed and uses configuration in :file:`.debops.cfg` to get
-  a list of directories that are bases to look for templates.
+  the need to modify the roles themselves. It uses configuration in
+  :file:`.debops.cfg` (via the ``debops`` Python module) or the global DebOps
+  configuration directory (via an embedded fallback) to get a list of
+  directories that are bases to look for templates.
 
   If a template file in specified subdirectory is found in one of the base
   directories, its path will be returned to Ansible to use as a template. If no
   custom templates are found, the lookup plugin returns the original path which
   corresponds to the template included in the role itself.
+
+
+Global configuration fallback
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The lookup plugins described above normally require the ``debops`` Python
+module to read their configuration. When installed via Ansible Galaxy, the
+``debops`` Python module is not available. In that case the lookup plugins
+fall back to reading the ``override_paths`` section directly from a
+project-local configuration file or the global DebOps configuration
+directories.
+
+Before reading the global directories, the plugins look for a file named
+:file:`.debops.yaml` / :file:`.debops.yml`, :file:`.debops.json`, or
+:file:`.debops.toml` in the current working directory (typically the project
+root where :command:`ansible-playbook` is executed). The first readable file
+found is used. This allows you to keep the override configuration in your
+project repository, alongside the Ansible playbooks.
+
+If no project-local configuration file is found, or it does not contain the
+relevant ``override_paths`` key, the plugins fall through to the global
+configuration directories, which are checked in this order (first match
+wins):
+
+- :file:`~/.config/debops/conf.d/`
+- :file:`/etc/debops/conf.d/`
+- :file:`/usr/local/lib/debops/conf.d/`
+- :file:`/usr/lib/debops/conf.d/`
+
+Each directory can contain files with ``.toml``, ``.yaml``, ``.yml`` or
+``.json`` extensions. The fallback reader supports all four formats. The
+relevant configuration keys are:
+
+``override_paths.files_path``
+  Custom directories for the ``debops.debops.file_src`` lookup plugin.
+``override_paths.tasks_path``
+  Custom directories for the ``debops.debops.task_src`` lookup plugin.
+``override_paths.templates_path``
+  Custom directories for the ``debops.debops.template_src`` lookup plugin.
+
+For example, to configure a custom files override directory for a project
+located at :file:`/home/alice/myansible/`:
+
+.. code-block:: json
+
+   {"override_paths": {"files_path": "/home/alice/myansible/resources/overrides/files"}}
+
+Or relative to the current working directory (typically the project root):
+
+.. code-block:: toml
+
+   [override_paths]
+   files_path = "resources/overrides/files"
+
+The lookup plugins will resolve relative paths against the directory where
+:command:`ansible-playbook` is executed.
+
+Note that the per-project :file:`.debops.cfg` configuration file is only
+supported when the ``debops`` Python module is installed. Users who install
+DebOps via Ansible Galaxy should use a :file:`.debops.yml` file (or a
+:file:`.debops.json` / :file:`.debops.toml` alternative) described above, or
+the global configuration directories.

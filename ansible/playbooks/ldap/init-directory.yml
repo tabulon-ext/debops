@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Initialize new LDAP directory
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_slapd' ]
   become: True
 
@@ -15,9 +14,14 @@
 
   vars_prompt:
 
-    - name: 'admin_plaintext_password'
-      prompt: 'New password for your LDAP user account'
+    - name: 'admin_input_plaintext_password'
+      prompt: 'New password for your LDAP user account (enter=random)'
+      default: ''
       private: True
+
+    - name: 'admin_use_password_store'
+      default: 'yes'
+      prompt: 'Use Password Store? (default=yes)'
 
   vars:
 
@@ -26,15 +30,31 @@
 
     # Information from the 'passwd' database for the current user on the
     # Ansible Controller
-    admin_gecos: '{{ getent_passwd[admin_user][3] }}'
+    admin_gecos: '{{ getent_passwd[admin_user][3] | d() }}'
 
     # SSH public keys in the 'ssh-agent'
     admin_sshkeys: '{{ lookup("pipe", "ssh-add -L | grep ^\\\(sk-\\\)\\\?ssh || cat ~/.ssh/*.pub || true").split("\n") }}'
 
-    # Password of the administrator account, stored in the Password Store on
-    # the Ansible Controller
-    admin_saved_password: '{{ lookup("passwordstore", ldap__admin_passwordstore_path
-                                     + "/" + (admin_dn | to_uuid)
+    # Plaintext administrator password. If no password has been provided,
+    # a random password will be generated and stored either in a file or
+    # in the Password Store on the Ansible Controller. If a password has
+    # been provided and the Password Store is not used, the password will
+    # not be stored.
+    admin_plaintext_password: '{{ admin_input_plaintext_password
+                                  if admin_input_plaintext_password | d()
+                                  else (lookup("password", "/dev/null length=32")
+                                        if admin_use_password_store | d(True) | bool
+                                        else
+                                        lookup("password",
+                                               secret + "/ldap/credentials/"
+                                               + admin_dn | to_uuid
+                                               + ".password length=32")) }}'
+
+    # This variable is used to store the administrator password in the Password
+    # Store on the Ansible Controller, if requested
+    admin_saved_password: '{{ lookup("passwordstore",
+                                     ldap__admin_passwordstore_path
+                                     + "/" + admin_dn | to_uuid
                                      + " create=true overwrite=true userpass="
                                      + admin_plaintext_password) }}'
 
@@ -54,7 +74,7 @@
     ldap__configured: True
 
     # Run the 'ldap' role in dependent mode; don't configure anything related
-    # to LDAP on the host iself, perform only LDAP tasks
+    # to LDAP on the host itself, perform only LDAP tasks
     ldap__dependent_play: True
 
     # Override the list of LDAP servers detected automatically by the role
@@ -72,7 +92,7 @@
 
     ldap__dependent_tasks:
 
-      - name: 'Create personal account for {{ admin_gecos.split(",")[0]|d(admin_user) }}'
+      - name: 'Create personal account for {{ admin_user }}'
         dn: '{{ [ admin_rdn, ldap__people_rdn ] + ldap__base_dn }}'
         objectClass: [ 'inetOrgPerson', 'posixAccount', 'shadowAccount',
                        'posixGroup', 'posixGroupId', 'ldapPublicKey',
@@ -80,16 +100,16 @@
         attributes:
 
           # inetOrgPerson attributes
-          commonName:   '{{ admin_gecos.split(",")[0] if admin_gecos|d() else (admin_user | capitalize) }}'
-          givenName:    '{{ (admin_gecos.split(",")[0].split()[0]) if (admin_gecos|d() and " " in admin_gecos) else (admin_user | capitalize) }}'
-          surname:      '{{ (admin_gecos.split(",")[0].split()[1]) if (admin_gecos|d() and " " in admin_gecos) else (admin_user | capitalize) }}'
+          commonName:   '{{ admin_gecos.split(",")[0] if admin_gecos | d() else (admin_user | capitalize) }}'
+          givenName:    '{{ (admin_gecos.split(",")[0].split()[0]) if (admin_gecos | d() and " " in admin_gecos) else (admin_user | capitalize) }}'
+          surname:      '{{ (admin_gecos.split(",")[0].split()[1]) if (admin_gecos | d() and " " in admin_gecos) else "AdminUser" }}'
           userPassword: '{{ admin_plaintext_password }}'
 
           # POSIX attributes
           uid:           '{{ admin_rdn.split("=")[1] }}'
           gid:           '{{ admin_rdn.split("=")[1] }}'
-          uidNumber:     '{{ ldap__groupid_max|int + 1 }}'
-          gidNumber:     '{{ ldap__groupid_max|int + 1 }}'
+          uidNumber:     '{{ ldap__groupid_max | int + 1 }}'
+          gidNumber:     '{{ ldap__groupid_max | int + 1 }}'
           homeDirectory: '{{ ldap__home + "/" + admin_user }}'
           loginShell:    '{{ ldap__shell }}'
 
@@ -112,21 +132,25 @@
   pre_tasks:
 
     - name: Check local user information
-      getent:
+      ansible.builtin.getent:
         database: 'passwd'
         key: '{{ admin_user }}'
       delegate_to: 'localhost'
       become: False
+      failed_when: False
 
     - name: Save admin credential in the password store
-      set_fact:
+      ansible.builtin.set_fact:
         admin_stored_password: '{{ admin_saved_password }}'
-      no_log: True
+      when: admin_use_password_store | d(True) | bool
+      no_log: '{{ debops__no_log | d(True) }}'
       delegate_to: 'localhost'
       become: False
       run_once: True
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: 'ldap'
       tags: [ 'role::ldap', 'skip::ldap' ]

@@ -4,118 +4,83 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Install required packages
-  package:
+  ansible.builtin.package:
     name: '{{ (logrotate__base_packages + logrotate__packages) | flatten }}'
     state: 'present'
   register: logrotate__register_packages
   until: logrotate__register_packages is succeeded
-  when: logrotate__enabled|bool
+  when: logrotate__enabled | bool
 
-- name: Manage the log rotation period in cron
-  shell: |
+- name: Determine current cron log rotation
+  ansible.builtin.shell: |
     set -o nounset -o pipefail -o errexit &&
-    {% if logrotate__cron_period in [ 'hourly', 'weekly', 'monthly' ] %}
-    test -z "$(dpkg-divert --list /etc/cron.daily/logrotate)" \
-      || dpkg-divert --quiet --local --rename --remove /etc/cron.daily/logrotate ;
-    dpkg-divert --quiet --local \
-                --divert /etc/cron.{{ logrotate__cron_period }}/logrotate \
-                --rename /etc/cron.daily/logrotate
-    {% else %}
-    dpkg-divert --quiet --local --rename --remove /etc/cron.daily/logrotate
-    {% endif %}
+    dpkg-divert --list /etc/cron.daily/logrotate | awk '{ print $NF }'
   args:
     executable: 'bash'
-    creates: '{{ "/etc/cron." + logrotate__cron_period + "/logrotate"
-                 if (logrotate__cron_period in [ "hourly", "weekly", "monthly" ])
-                 else "/etc/cron.daily/logrotate" }}'
-  when: logrotate__enabled|bool
+  register: logrotate__register_cron_diversion
+  changed_when: False
+  when: logrotate__enabled | bool
 
-- name: Divert the original logrotate config file
-  command: dpkg-divert --quiet --local --divert /etc/logrotate.conf.dpkg-divert --rename /etc/logrotate.conf
-  args:
-    creates: '/etc/logrotate.conf.dpkg-divert'
-  when: logrotate__enabled|bool
+- name: Remove previous cron log rotation
+  debops.debops.dpkg_divert:
+    path: '/etc/cron.daily/logrotate'
+    divert: '{{ logrotate__register_cron_diversion.stdout }}'
+    state: 'absent'
+    delete: True
+  when: (logrotate__enabled | bool and
+         logrotate__register_cron_diversion.stdout is truthy and
+         logrotate__register_cron_diversion.stdout !=
+         ('/etc/cron.' + logrotate__cron_period + '/logrotate'))
+
+- name: Configure cron log rotation {{ logrotate__cron_period }}
+  debops.debops.dpkg_divert:
+    path: '/etc/cron.daily/logrotate'
+    divert: '/etc/cron.{{ logrotate__cron_period }}/logrotate'
+  when: (logrotate__enabled | bool and
+         logrotate__cron_period in ['hourly', 'weekly', 'monthly'])
+
+- name: Add/remove diversion of the logrotate config file
+  debops.debops.dpkg_divert:
+    path: '/etc/logrotate.conf'
+    state: '{{ "present" if logrotate__enabled | bool else "absent" }}'
+    delete: True
 
 - name: Generate logrotate main configuration file
-  template:
+  ansible.builtin.template:
     src: 'etc/logrotate.conf.j2'
     dest: '/etc/logrotate.conf'
     owner: 'root'
     group: 'root'
     mode: '0644'
-  when: logrotate__enabled|bool
+  when: logrotate__enabled | bool
 
-- name: Revert the default configuration file
-  shell: rm -f /etc/logrotate.conf ; dpkg-divert --quiet --local --rename --remove /etc/logrotate.conf
-  args:
-    removes: '/etc/logrotate.conf.dpkg-divert'
-    warn: False
-  when: not logrotate__enabled|bool
-
-- name: Check current logrotate diversions
-  environment:
-    LC_ALL: 'C'
-  shell: set -o nounset -o pipefail -o errexit &&
-         dpkg-divert --list '/etc/logrotate.d/*.dpkg-divert' | awk '{print $NF}' || true
-  args:
-    executable: 'bash'
-  register: logrotate__register_diversions
-  check_mode: False
-  changed_when: False
-
-- name: Divert the custom log rotation config
-  command: dpkg-divert --quiet --local
-           --divert /etc/logrotate.d/{{ item.filename }}.dpkg-divert
-           --rename /etc/logrotate.d/{{ item.filename }}
-  with_flattened:
-    - '{{ logrotate__config }}'
-    - '{{ logrotate__group_config }}'
-    - '{{ logrotate__host_config }}'
-    - '{{ logrotate__dependent_config }}'
-  when: (logrotate__enabled|bool and item.filename|d() and
-         (item.state is undefined or item.state != 'absent') and
-         (item.divert|d() and item.divert|bool and
-          '/etc/logrotate.d/' + item.filename + '.dpkg-divert' not in logrotate__register_diversions.stdout_lines))
+- name: Add/remove diversion of the custom log rotation configuration
+  debops.debops.dpkg_divert:
+    path: '/etc/logrotate.d/{{ item.filename }}'
+    state: '{{ "present"
+               if
+               (logrotate__enabled | bool and item.state | d("present") != "absent")
+               else "absent" }}'
+    delete: True
+  loop: '{{ logrotate__combined_config | flatten }}'
+  when: item.filename is defined and item.filename is truthy and
+        item.divert is defined and item.divert is truthy | bool
 
 - name: Generate custom log rotation configuration
-  template:
+  ansible.builtin.template:
     src: 'etc/logrotate.d/config.j2'
     dest: '/etc/logrotate.d/{{ item.filename }}'
     owner: 'root'
     group: 'root'
     mode: '0644'
-  with_flattened:
-    - '{{ logrotate__config }}'
-    - '{{ logrotate__group_config }}'
-    - '{{ logrotate__host_config }}'
-    - '{{ logrotate__dependent_config }}'
-  when: (logrotate__enabled|bool and item.filename|d() and
-         (item.state is undefined or item.state != 'absent'))
+  loop: '{{ logrotate__combined_config | flatten }}'
+  when: (logrotate__enabled | bool and item.filename is defined and item.filename is truthy and
+         item.state | d('present') != 'absent')
 
 - name: Remove custom log rotation configuration
-  file:
+  ansible.builtin.file:
     path: '/etc/logrotate.d/{{ item.filename }}'
     state: 'absent'
-  with_flattened:
-    - '{{ logrotate__config }}'
-    - '{{ logrotate__group_config }}'
-    - '{{ logrotate__host_config }}'
-    - '{{ logrotate__dependent_config }}'
-  when: ((not logrotate__enabled|bool or
-          (item.filename|d() and (item.state|d() and item.state == 'absent'))) and
-         item.divert is undefined)
-
-- name: Revert original log rotation configuration
-  shell: rm -f /etc/logrotate.d/{{ item.filename }}
-         ; dpkg-divert --quiet --local --rename --remove /etc/logrotate.d/{{ item.filename }}
-  args:
-    warn: False
-  with_flattened:
-    - '{{ logrotate__config }}'
-    - '{{ logrotate__group_config }}'
-    - '{{ logrotate__host_config }}'
-    - '{{ logrotate__dependent_config }}'
-  when: ((not logrotate__enabled|bool or
-          (item.filename|d() and (item.state|d() and item.state == 'absent'))) and
-         (item.divert|d() and item.divert|bool and
-          '/etc/logrotate.d/' + item.filename + '.dpkg-divert' in logrotate__register_diversions.stdout_lines))
+  loop: '{{ logrotate__combined_config | flatten }}'
+  when: (item.filename is defined and item.filename is truthy and not (item.divert is defined and item.divert is truthy) | bool and
+         (not logrotate__enabled | bool or item.state | d('present') == 'absent'))

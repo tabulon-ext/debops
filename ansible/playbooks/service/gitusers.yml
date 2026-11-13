@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage users with git-shell accounts
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_gitusers' ]
   become: True
 
@@ -14,6 +13,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: system_groups
       tags: [ 'role::system_groups', 'skip::system_groups' ]

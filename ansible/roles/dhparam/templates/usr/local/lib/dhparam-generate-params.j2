@@ -16,7 +16,7 @@ pidfile_scheduler="/run/$(basename "${0}")-scheduler.pid"
 
 pidfile_run="/run/$(basename "${0}").pid"
 
-dhparam_log="{{ 'true' if dhparam__generate_log|bool else '' }}"
+dhparam_log="{{ 'true' if dhparam__generate_log | bool else '' }}"
 
 clean_up () {
   test -f "${pidfile_run}" && rm -f "${pidfile_run}"
@@ -41,7 +41,7 @@ if [ "${command}" == "run" ] ; then
   echo $$ > "${pidfile_run}"
   sleep 1
 
-  if [ "x$(cat "${pidfile_run}")" != "x"$$ ] ; then
+  if [ "$(cat "${pidfile_run}")" != $$ ] ; then
     log_message "DH parameter generation started by PID $(cat "${pidfile_run}"), aborting"
     exit 0
   fi
@@ -61,7 +61,7 @@ elif [ "${command}" == "schedule" ] ; then
   echo $$ > "${pidfile_scheduler}"
   sleep 1
 
-  if [ "x$(cat "${pidfile_scheduler}")" != "x"$$ ] ; then
+  if [ "$(cat "${pidfile_scheduler}")" != $$ ] ; then
     log_message "DH generation scheduler started as PID $(cat "${pidfile_scheduler}"), aborting"
     exit 0
   fi
@@ -70,6 +70,8 @@ fi
 
 dhparam_library="{{ dhparam__library }}"
 dhparam_path="{{ dhparam__path + '/params' }}"
+
+read -r -a dhparam_openssl_options <<< "{{ dhparam__openssl_options | join(' ') }}"
 
 dhparam_prefix="{{ dhparam__prefix }}"
 read -r -a dhparam_bits <<< "{{ dhparam__bits | join(' ') }}"
@@ -100,7 +102,7 @@ generate_params () {
       if [ "${dhparam_library}" == "gnutls" ] ; then
         certtool --generate-dh-params --outfile "${dhparam_file}.tmp" --bits "${length}" > /dev/null 2>&1 && mv "${dhparam_file}.tmp" "${dhparam_file}"
       elif [ "${dhparam_library}" == "openssl" ] ; then
-        openssl dhparam -out "${dhparam_file}.tmp" "${length}" > /dev/null 2>&1 && mv "${dhparam_file}.tmp" "${dhparam_file}"
+        openssl dhparam "${dhparam_openssl_options[@]}" -out "${dhparam_file}.tmp" "${length}" > /dev/null 2>&1 && mv "${dhparam_file}.tmp" "${dhparam_file}"
       fi
 
     done
@@ -131,4 +133,3 @@ case "${command}" in
   schedule)   schedule_job ;;
   *)          echo "Usage: $(basename "${0}") {run|schedule}" ;;
 esac
-

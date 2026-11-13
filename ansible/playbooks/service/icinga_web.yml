@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Configure Icinga Web service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_icinga_web' ]
   become: True
 
@@ -16,7 +15,7 @@
   pre_tasks:
 
     - name: Apply keyring configuration for php environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'keyring'
       vars:
         keyring__dependent_apt_keys:
@@ -30,12 +29,14 @@
               'role::php', 'role::nginx', 'role::postgresql', 'role::mariadb' ]
 
     - name: Prepare php environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'php'
         tasks_from: 'main_env'
       tags: [ 'role::php', 'role::php:env', 'role::logrotate' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: apt_preferences
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
@@ -43,7 +44,9 @@
         - '{{ icinga_web__apt_preferences__dependent_list }}'
         - '{{ php__apt_preferences__dependent_list }}'
         - '{{ nginx__apt_preferences__dependent_list }}'
-        - '{{ postgresql__apt_preferences__dependent_list | d([]) }}'
+
+    - role: cron
+      tags: [ 'role::cron', 'skip::cron' ]
 
     - role: logrotate
       tags: [ 'role::logrotate', 'skip::logrotate' ]
@@ -97,6 +100,8 @@
         - '{{ icinga_web__postgresql__dependent_groups }}'
       postgresql__dependent_databases:
         - '{{ icinga_web__postgresql__dependent_databases }}'
+      postgresql__dependent_privileges:
+        - '{{ icinga_web__postgresql__dependent_privileges }}'
       postgresql__dependent_extensions:
         - '{{ icinga_web__postgresql__dependent_extensions }}'
       when: icinga_web__database_type == 'postgresql'
@@ -108,7 +113,7 @@
       mariadb__dependent_users:
         - '{{ icinga_web__mariadb__dependent_users }}'
       when: icinga_web__database_type == 'mariadb' or
-            icinga_web__x509_enabled|bool
+            icinga_web__x509_enabled | bool
 
     - role: icinga_web
       tags: [ 'role::icinga_web', 'skip::icinga_web' ]

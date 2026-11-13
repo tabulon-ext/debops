@@ -1,0 +1,148 @@
+# (c) 2015, Robert Chady <rchady@sitepen.com>
+# Based on `runner/lookup_plugins/file.py` for Ansible
+#   (c) 2012, Michael DeHaan <michael.dehaan@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of Debops.
+# This file is NOT part of Ansible yet.
+#
+# Debops is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Debops.  If not, see <https://www.gnu.org/licenses/>.
+'''
+
+This file implements the `task_src` lookup filter for Ansible.  In difference
+to the `file` filter, this searches values based on the `task-paths`
+variable (colon separated) as configured in DebOps.
+
+NOTE: This means this filter relies on DebOps.
+
+'''
+
+__author__ = "Robert Chady <rchady@sitepen.com>"
+__copyright__ = "Copyright 2015 by Robert Chady <rchady@sitepen.com>"
+__license__ = "GNU General Public LIcense version 3 (GPL v3) or later"
+
+import os
+
+try:
+    import debops
+    # Import the version module explicitly: the package root no
+    # longer imports its submodules transitively, so the attribute
+    # exists only once the submodule itself is imported
+    import debops.__version__
+    debops_version = debops.__version__.__version__
+    conf_section = 'override_paths'
+    conf_key = 'tasks_path'
+    # The configuration moved under debops.core in debops 3.5;
+    # fall back to the flat layout when an older Python package
+    # provides the collection
+    try:
+        from debops.core.config import Configuration
+        from debops.core.projectdir import ProjectDir
+    except ImportError:
+        from debops.config import Configuration
+        from debops.projectdir import ProjectDir
+except AttributeError:
+    try:
+        from debops import *
+        from debops.cmds import *
+        debops_version = '2.3.0'
+        conf_section = 'paths'
+        conf_key = 'task-paths'
+    except ImportError:
+        pass
+except ModuleNotFoundError:
+    conf_section = ''
+    conf_key = ''
+    pass
+
+try:
+    from ansible.plugins.lookup import LookupBase
+except ImportError:
+    LookupBase = object
+
+from ansible.errors import AnsibleError
+from ansible_collections.debops.debops.plugins.plugin_utils import debops_config
+
+
+class LookupModule(LookupBase):
+
+    def run(self, terms, variables=None, **kwargs):
+        ret = []
+        config = {}
+        places = []
+
+        # this can happen if the variable contains a string,
+        # strictly not desired for lookup plugins, but users may
+        # try it, so make it work.
+        if not isinstance(terms, list):
+            terms = [terms]
+
+        try:
+            project_config = Configuration()
+            project_dir = ProjectDir(path=os.getcwd(), cwd=os.getcwd(),
+                                     config=project_config)
+            project_root = project_dir.path
+            if project_dir.config.get(['project', 'type']) == 'modern':
+                config = project_dir.config.get([])
+            else:
+                config = project_dir.config.get(['views', 'system'])
+        except NameError:
+            try:
+                project_root = find_debops_project(required=False)
+                config = read_config(project_root)
+            except NameError:
+                pass
+        except NotADirectoryError:
+            # This is not a DebOps project directory, so continue as normal
+            pass
+
+        if conf_section in config and conf_key in config[conf_section]:
+            custom_places = (
+                    config[conf_section][conf_key].split(':'))
+            for custom_path in custom_places:
+                if os.path.isabs(custom_path):
+                    places.append(custom_path)
+                else:
+                    places.append(os.path.join(
+                        project_root, custom_path))
+
+        # Fallback when the debops Python module is not available
+        # (e.g. installed via Ansible Galaxy). Read override paths
+        # directly from the global DebOps configuration directories.
+        if not places:
+            places.extend(debops_config.load_fallback_paths('tasks_path'))
+
+        for term in terms:
+            if 'role_path' in variables:
+                relative_path = (
+                        self._loader.path_dwim_relative(
+                            variables['role_path'],
+                            'tasks', ''))
+                places.append(relative_path)
+            for path in places:
+                template = os.path.join(path, term)
+                if template and os.path.exists(template):
+                    ret.append(template)
+                    break
+            else:
+                msg = "could not locate file in lookup: %s" % term
+                if not places:
+                    msg += (". No override paths configured. Install"
+                            " the debops Python module, create a"
+                            " .debops.{yaml,yml,json,toml} file,"
+                            " or add config to"
+                            " ~/.config/debops/conf.d/")
+                raise AnsibleError(msg)
+
+        return ret

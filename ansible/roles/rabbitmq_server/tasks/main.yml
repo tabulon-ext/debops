@@ -1,24 +1,20 @@
 ---
-# Copyright (C) 2017 Maciej Delmanowski <drybjed@gmail.com>
-# Copyright (C) 2017 DebOps <https://debops.org/>
+# Copyright (C) 2017-2024 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2017-2024 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-only
 
-- name: Import DebOps global handlers
-  import_role:
-    name: 'global_handlers'
-
 - name: Import DebOps secret role
-  import_role:
+  ansible.builtin.import_role:
     name: 'secret'
 
 - name: Make sure that required UNIX group exists
-  group:
+  ansible.builtin.group:
     name: '{{ rabbitmq_server__group }}'
     state: 'present'
     system: True
 
 - name: Make sure that required UNIX account exists
-  user:
+  ansible.builtin.user:
     name: '{{ rabbitmq_server__user }}'
     group: '{{ rabbitmq_server__group }}'
     groups: '{{ rabbitmq_server__append_groups | join(",") }}'
@@ -32,25 +28,25 @@
   # Without this, first Erlang cookie lookup on each host
   # returns different values.
 - name: Initialize Erlang cookie on the Ansible Controller
-  set_fact:
+  ansible.builtin.set_fact:
     rabbitmq_server__fact_erlang_cookie: '{{ rabbitmq_server__erlang_cookie_password }}'
   delegate_to: 'localhost'
   become: False
   run_once: True
-  no_log: True
+  no_log: '{{ debops__no_log | d(True) }}'
 
 - name: Configure Erlang cookie
-  copy:
+  ansible.builtin.copy:
     content: '{{ rabbitmq_server__erlang_cookie_password }}'
     dest: '{{ rabbitmq_server__erlang_cookie_path }}'
     owner: '{{ rabbitmq_server__user }}'
     group: '{{ rabbitmq_server__group }}'
     mode: '0400'
   notify: [ 'Restart rabbitmq-server' ]
-  no_log: True
+  no_log: '{{ debops__no_log | d(True) }}'
 
 - name: Ensure that configuration directory exists
-  file:
+  ansible.builtin.file:
     path: '/etc/rabbitmq'
     state: 'directory'
     owner: '{{ rabbitmq_server__user }}'
@@ -58,7 +54,7 @@
     mode: '0755'
 
 - name: Generate RabbitMQ environment file
-  template:
+  ansible.builtin.template:
     src: 'etc/rabbitmq/rabbitmq-env.conf.j2'
     dest: '/etc/rabbitmq/rabbitmq-env.conf'
     owner: 'root'
@@ -68,7 +64,7 @@
   tags: [ 'role::rabbitmq_server:config' ]
 
 - name: Install RabbitMQ packages
-  package:
+  ansible.builtin.package:
     name: '{{ q("flattened", (rabbitmq_server__base_packages
                               + rabbitmq_server__packages)) }}'
     state: 'present'
@@ -76,30 +72,30 @@
   until: rabbitmq_server__register_packages is succeeded
 
 - name: Check if the dependent config file exists
-  stat:
+  ansible.builtin.stat:
     path: '{{ secret + "/rabbitmq_server/dependent_config/" + inventory_hostname + "/config.json" }}'
   register: rabbitmq_server__register_dependent_config_file
   become: False
   delegate_to: 'localhost'
-  when: (ansible_local|d() and ansible_local.rabbitmq_server|d() and
+  when: (ansible_local is defined and ansible_local.rabbitmq_server is defined and
          ansible_local.rabbitmq_server.installed is defined and
-         ansible_local.rabbitmq_server.installed|bool)
+         ansible_local.rabbitmq_server.installed | bool)
   tags: [ 'role::rabbitmq_server:config' ]
 
 - name: Load the dependent configuration from Ansible Controller
-  slurp:
+  ansible.builtin.slurp:
     src: '{{ secret + "/rabbitmq_server/dependent_config/" + inventory_hostname + "/config.json" }}'
   register: rabbitmq_server__register_dependent_config
   become: False
   delegate_to: 'localhost'
-  when: (ansible_local|d() and ansible_local.rabbitmq_server|d() and
+  when: (ansible_local is defined and ansible_local.rabbitmq_server is defined and
          ansible_local.rabbitmq_server.installed is defined and
-         ansible_local.rabbitmq_server.installed|bool and
-         rabbitmq_server__register_dependent_config_file.stat.exists|bool)
+         ansible_local.rabbitmq_server.installed | bool and
+         rabbitmq_server__register_dependent_config_file.stat.exists | bool)
   tags: [ 'role::rabbitmq_server:config' ]
 
 - name: Make sure that Ansible local facts directory exists
-  file:
+  ansible.builtin.file:
     path: '/etc/ansible/facts.d'
     state: 'directory'
     owner: 'root'
@@ -107,19 +103,20 @@
     mode: '0755'
 
 - name: Save RabbitMQ local facts
-  template:
+  ansible.builtin.template:
     src: 'etc/ansible/facts.d/rabbitmq_server.fact.j2'
     dest: '/etc/ansible/facts.d/rabbitmq_server.fact'
     owner: 'root'
     group: 'root'
     mode: '0755'
   notify: [ 'Refresh host facts' ]
+  tags: [ 'meta::facts' ]
 
 - name: Update Ansible facts if they were modified
-  meta: 'flush_handlers'
+  ansible.builtin.meta: 'flush_handlers'
 
 - name: Generate RabbitMQ configuration
-  template:
+  ansible.builtin.template:
     src: 'etc/rabbitmq/rabbitmq.config.j2'
     dest: '/etc/rabbitmq/rabbitmq.config'
     owner: '{{ rabbitmq_server__user }}'
@@ -129,85 +126,246 @@
   tags: [ 'role::rabbitmq_server:config' ]
 
 - name: Manage RabbitMQ plugins
-  rabbitmq_plugin:
+  community.rabbitmq.rabbitmq_plugin:
     names:  '{{ item.name | d(item) }}'
-    state:  '{{ "enabled" if item.state|d("present") != "absent" else "disabled" }}'
+    state:  '{{ "enabled" if item.state | d("present") != "absent" else "disabled" }}'
     prefix: '{{ item.prefix | d(omit) }}'
     new_only: True
-  with_flattened:
-    - '{{ rabbitmq_server__combined_plugins }}'
-  notify: [ 'Restart rabbitmq-server' ]
+  loop: '{{ q("flattened", rabbitmq_server__combined_plugins) }}'
   tags: [ 'role::rabbitmq_server:config' ]
 
 - name: Manage RabbitMQ virtual hosts
-  rabbitmq_vhost:
-    name:    '{{ item.name    | d(item) }}'
-    node:    '{{ item.node    | d(omit) }}'
-    state:   '{{ item.state   | d("present") }}'
+  community.rabbitmq.rabbitmq_vhost:
+    name:    '{{ item.name | d(item) }}'
+    node:    '{{ item.node | d(omit) }}'
+    state:   '{{ item.state | d("present") }}'
     tracing: '{{ item.tracing | d(omit) }}'
-  with_flattened:
-    - '{{ rabbitmq_server__combined_vhosts }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_vhosts) }}'
   tags: [ 'role::rabbitmq_server:vhost', 'role::rabbitmq_server:parameter',
           'role::rabbitmq_server:policy', 'role::rabbitmq_server:user' ]
 
-- name: Manage RabbitMQ parameters
-  rabbitmq_parameter:
-    component: '{{ item.component }}'
+- name: Set RabbitMQ virtual host default queue type
+  ansible.builtin.command:
+    cmd: >-
+      rabbitmqctl update_vhost_metadata {{ item.name | d(item) }}
+      --default-queue-type {{ item.default_queue_type }}
+  when: item.default_queue_type is defined and item.default_queue_type is truthy
+  loop: '{{ q("flattened", rabbitmq_server__combined_vhosts) }}'
+  register: rabbitmq_server__register_vhost_dqt
+  changed_when: rabbitmq_server__register_vhost_dqt.rc == 0
+  tags: [ 'role::rabbitmq_server:vhost' ]
+
+- name: Manage RabbitMQ virtual host limits
+  community.rabbitmq.rabbitmq_vhost_limits:
+    vhost: '{{ item.vhost }}'
+    node: '{{ item.node | d(omit) }}'
+    max_connections: '{{ item.max_connections | d(omit) }}'
+    max_queues: '{{ item.max_queues | d(omit) }}'
+    state: '{{ item.state | d("present") }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_vhost_limits) }}'
+  tags: [ 'role::rabbitmq_server:vhost' ]
+
+- name: Get list of toggleable RabbitMQ feature flags
+  ansible.builtin.command:
+    cmd: 'rabbitmqctl -q list_feature_flags name state'
+  register: rabbitmq_server__register_feature_flags_list
+  check_mode: False
+  changed_when: False
+  when: rabbitmq_server__combined_feature_flags | length > 0
+
+- name: Manage RabbitMQ feature flags (opt-in)
+  ansible.builtin.command:
+    cmd: "rabbitmqctl -q enable_feature_flag --opt-in {{ item.name }}"
+  loop: '{{ q("flattened", rabbitmq_server__combined_feature_flags) }}'
+  loop_control:
+    label: '{{ item.name | d(item) }}'
+  vars:
+    # Idempotency is derived from the already-registered feature flag list
+    # because 'rabbitmqctl enable_feature_flag' produces no distinguishable
+    # output for no-op runs (both stdout and stderr stay empty for an
+    # already-enabled flag, verified at runtime on RabbitMQ 4.x).
+    _rabbitmq_server__enabled_feature_flags: '{{ rabbitmq_server__register_feature_flags_list.stdout_lines
+                                                 | default([])
+                                                 | select("search", "\tenabled$")
+                                                 | map("regex_replace", "\t.*$", "")
+                                                 | list }}'
+  changed_when: true
+  when:
+    - item.name is defined and item.name is truthy
+    - item.opt_in | d(False) | bool
+    - item.name not in _rabbitmq_server__enabled_feature_flags
+
+# Required feature flags (e.g. 'detailed_queues_endpoint' in RabbitMQ 4.x) are
+# not returned by 'rabbitmqctl list_feature_flags' - they are auto-enabled in
+# the running version and only had to be enabled before upgrading to the major
+# that made them required. Skip those silently so that inventories written for
+# older versions stay idempotent after a RabbitMQ major upgrade.
+# Genuinely unknown flag names (typos) still fail inside the module.
+- name: Manage RabbitMQ feature flags
+  community.rabbitmq.rabbitmq_feature_flag:
+    name: '{{ item.name }}'
+    node: '{{ item.node | d(omit) }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_feature_flags) }}'
+  when:
+    - item.name is defined and item.name is truthy
+    - not (item.opt_in | d(False) | bool)
+    - item.name in (rabbitmq_server__register_feature_flags_list.stdout_lines
+                    | default([]) | map('split', '\t') | map('first') | list)
+
+- name: Manage RabbitMQ global parameters
+  community.rabbitmq.rabbitmq_global_parameter:
     name:      '{{ item.name }}'
-    node:      '{{ item.node  | d(omit) }}'
+    node:      '{{ item.node | d(omit) }}'
     state:     '{{ item.state | d("present") }}'
     value:     '{{ item.value | d(omit) }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_global_parameters) }}'
+  tags: [ 'role::rabbitmq_server:parameter' ]
+
+- name: Manage RabbitMQ parameters
+  community.rabbitmq.rabbitmq_parameter:
+    component: '{{ item.component }}'
+    name:      '{{ item.name }}'
+    node:      '{{ item.node | d(omit) }}'
+    state:     '{{ item.state | d("present") }}'
+    value:     '{{ item.value | to_json or omit }}'
     vhost:     '{{ item.vhost | d(omit) }}'
-  with_flattened:
-    - '{{ rabbitmq_server__combined_parameters }}'
-  when: (item.name|d() and item.component|d())
+  loop: '{{ q("flattened", rabbitmq_server__combined_parameters) }}'
+  when: (item.name is defined and item.name is truthy and item.component is defined and item.component is truthy)
   tags: [ 'role::rabbitmq_server:parameter' ]
 
 - name: Manage RabbitMQ policies
-  rabbitmq_policy:
+  community.rabbitmq.rabbitmq_policy:
     name:     '{{ item.name }}'
     pattern:  '{{ item.pattern }}'
     tags:     '{{ item.tags }}'
     apply_to: '{{ item.apply_to | d(omit) }}'
-    node:     '{{ item.node     | d(omit) }}'
+    node:     '{{ item.node | d(omit) }}'
     priority: '{{ item.priority | d(omit) }}'
-    state:    '{{ item.state    | d("present") }}'
-    vhost:    '{{ item.vhost    | d(omit) }}'
-  with_flattened:
-    - '{{ rabbitmq_server__combined_policies }}'
-  when: (item.name|d() and item.pattern|d() and item.tags|d())
+    state:    '{{ item.state | d("present") }}'
+    vhost:    '{{ item.vhost | d(omit) }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_policies) }}'
+  when: (item.name is defined and item.name is truthy and item.pattern is defined and item.pattern is truthy and item.tags is defined and item.tags is truthy)
   tags: [ 'role::rabbitmq_server:policy' ]
 
 - name: Manage RabbitMQ user accounts
-  rabbitmq_user:
-    user:           '{{ item.user           | d(item.name) | d(item) }}'
-    force:          '{{ item.force          | d(omit) }}'
-    node:           '{{ item.node           | d(omit) }}'
-    permissions:    '{{ item.permissions    | d(omit) }}'
+  community.rabbitmq.rabbitmq_user:
+    user:           '{{ item.user | d(item.name) | d(item) }}'
+    force:          '{{ item.force | d(omit) }}'
+    node:           '{{ item.node | d(omit) }}'
+    permissions:    '{{ item.permissions | d(omit) }}'  # noqa args[module]
     configure_priv: '{{ item.configure_priv | d(omit) }}'
-    read_priv:      '{{ item.read_priv      | d(omit) }}'
-    write_priv:     '{{ item.write_priv     | d(omit) }}'
-    state:          '{{ item.state          | d("present") }}'
-    vhost:          '{{ item.vhost          | d(omit) }}'
-    password:       '{{ item.password       | d(lookup("password",
-                        secret + "/rabbitmq_server/accounts/"
-                        + (item.user | d(item.name | d(item)))
-                        + "/password length="
-                        + rabbitmq_server__account_password_length)) }}'
+    read_priv:      '{{ item.read_priv | d(omit) }}'
+    write_priv:     '{{ item.write_priv | d(omit) }}'
+    state:          '{{ item.state | d("present") }}'
+    vhost:          '{{ item.vhost | d(omit) }}'
+
+    # Avoid a password lookup if the password is defined, or if the account
+    # is meant to be absent (in which case the password is omitted).
+    password:       '{{ item.password | d(omit)
+                        if ((item.password is defined)
+                            or (item.state | d("present") == "absent"))
+                        else lookup("password",
+                                    secret + "/rabbitmq_server/accounts/"
+                                    + (item.user | d(item.name | d(item)))
+                                    + "/password length="
+                                    + rabbitmq_server__account_password_length) }}'
     tags:           '{{ (((item.tags.split(",") | list)
-                          if (item.tags|d() and item.tags is string)
+                          if (item.tags | d() and item.tags is string)
                           else item.tags) | join(","))
-                        if item.tags|d() else omit }}'
-  with_flattened:
-    - '{{ rabbitmq_server__combined_accounts }}'
+                        if item.tags | d() else omit }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_accounts) }}'
   tags: [ 'role::rabbitmq_server:user' ]
-  no_log: True
+  no_log: '{{ debops__no_log | d(True) }}'
+
+- name: Manage RabbitMQ user limits
+  community.rabbitmq.rabbitmq_user_limits:
+    user: '{{ item.user }}'
+    node: '{{ item.node | d(omit) }}'
+    max_connections: '{{ item.max_connections | d(omit) }}'
+    max_channels: '{{ item.max_channels | d(omit) }}'
+    state: '{{ item.state | d("present") }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_user_limits) }}'
+  tags: [ 'role::rabbitmq_server:user' ]
+
+- name: Manage RabbitMQ exchanges
+  community.rabbitmq.rabbitmq_exchange:
+    name: '{{ item.name }}'
+    arguments: '{{ item.arguments | d(omit) }}'
+    auto_delete: '{{ item.auto_delete | d(omit) }}'
+    ca_cert: '{{ item.ca_cert | d(omit) }}'
+    client_cert: '{{ item.client_cert | d(omit) }}'
+    client_key: '{{ item.client_key | d(omit) }}'
+    durable:  '{{ item.durable | d(omit) }}'
+    exchange_type: '{{ item.exchange_type | d(omit) }}'
+    internal: '{{ item.internal | d(omit) }}'
+    login_host: '{{ item.login_host | d(omit) }}'
+    login_password: '{{ item.login_password | d(omit) }}'
+    login_port: '{{ item.login_port | d(omit) }}'
+    login_protocol: '{{ item.login_protocol | d(omit) }}'
+    login_user: '{{ item.login_user | d(omit) }}'
+    state: '{{ item.state | d("present") }}'
+    vhost: '{{ item.vhost | d(omit) }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_exchanges) }}'
+  no_log: '{{ debops__no_log | d(True) }}'
+
+- name: Manage RabbitMQ queues
+  community.rabbitmq.rabbitmq_queue:
+    name: '{{ item.name }}'
+    arguments: '{{ item.arguments | d(omit) }}'
+    auto_delete: '{{ item.auto_delete | d(omit) }}'
+    auto_expires: '{{ item.auto_expires | d(omit) }}'
+    ca_cert: '{{ item.ca_cert | d(omit) }}'
+    client_cert: '{{ item.client_cert | d(omit) }}'
+    client_key: '{{ item.client_key | d(omit) }}'
+    dead_letter_exchange: '{{ item.dead_letter_exchange | d(omit) }}'
+    dead_letter_routing_key: '{{ item.dead_letter_routing_key | d(omit) }}'
+    durable:  '{{ item.durable | d(omit) }}'
+    login_host: '{{ item.login_host | d(omit) }}'
+    login_password: '{{ item.login_password | d(omit) }}'
+    login_port: '{{ item.login_port | d(omit) }}'
+    login_protocol: '{{ item.login_protocol | d(omit) }}'
+    login_user: '{{ item.login_user | d(omit) }}'
+    max_length: '{{ item.max_length | d(omit) }}'
+    max_priority: '{{ item.max_priority | d(omit) }}'
+    message_ttl: '{{ item.message_ttl | d(omit) }}'
+    state: '{{ item.state | d("present") }}'
+    vhost: '{{ item.vhost | d(omit) }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_queues) }}'
+  no_log: '{{ debops__no_log | d(True) }}'
+  tags: [ 'role::rabbitmq_server:queue' ]
+
+- name: Manage RabbitMQ bindings
+  community.rabbitmq.rabbitmq_binding:
+    name: '{{ item.name }}'
+    ca_cert: '{{ item.ca_cert | d(omit) }}'
+    client_cert: '{{ item.client_cert | d(omit) }}'
+    client_key: '{{ item.client_key | d(omit) }}'
+    destination: '{{ item.destination }}'
+    destination_type: '{{ item.destination_type }}'
+    login_host: '{{ item.login_host | d(omit) }}'
+    login_password: '{{ item.login_password | d(omit) }}'
+    login_port: '{{ item.login_port | d(omit) }}'
+    login_protocol: '{{ item.login_protocol | d(omit) }}'
+    login_user: '{{ item.login_user | d(omit) }}'
+    arguments: '{{ item.arguments | d(omit) }}'
+    routing_key: '{{ item.routing_key | d(omit) }}'
+    state: '{{ item.state | d("present") }}'
+    vhost: '{{ item.vhost | d(omit) }}'
+  loop: '{{ q("flattened", rabbitmq_server__combined_bindings) }}'
+  no_log: '{{ debops__no_log | d(True) }}'
 
 - name: Save RabbitMQ dependent configuration on Ansible Controller
-  template:
+  ansible.builtin.template:
     src: 'secret/rabbitmq_server/dependent_config/inventory_hostname/config.json.j2'
     dest: '{{ secret + "/rabbitmq_server/dependent_config/" + inventory_hostname + "/config.json" }}'
     mode: '0644'
   become: False
   delegate_to: 'localhost'
   tags: [ 'role::rabbitmq_server:config' ]
+
+- name: Flush handlers before cluster auto-join
+  ansible.builtin.meta: flush_handlers
+
+- name: Bootstrap RabbitMQ cluster membership
+  ansible.builtin.import_tasks: 'cluster_autojoin.yml'
+  tags: [ 'role::rabbitmq_server', 'role::rabbitmq_server:cluster' ]

@@ -143,18 +143,31 @@ Upgrade
 -------
 
 All upgrades be it major or patch need to be done manually for now. The role
-currently does not automate this.
+does not automate this. The way to support Nextcloud auto upgrades would be to
+use the Nextcloud Docker image because it includes an application upgrade
+script. The role could be extended to support using the Docker image if needed.
 
-Upgrade the application using the build-in upgrade feature, then rerun the
+Upgrade the application using the built-in upgrade feature, then rerun the
 service playbook for this role to ensure the matching settings are applied.
 
 If the application complains under ``/settings/admin/overview`` then you might need to run:
 
 .. code-block:: console
 
-   occ upgrade; occ db:add-missing-indice; occ db:add-missing-columns; occ db:convert-filecache-bigint; occ db:add-missing-primary-keys
+   occ upgrade; occ db:add-missing-indice; occ db:add-missing-columns; occ db:convert-filecache-bigint; occ db:add-missing-primary-keys && occ maintenance:mode --off
 
 It also does not hurt to run that by default.
+
+Expected warnings
+-----------------
+
+Nextcloud and ownCloud have a self check under "Administration" -> "Overview". Some warnings are expected to be shown.
+
+* Nextcloud 21 and newer: Module ``php-imagick`` in this instance has no SVG
+  support. For better compatibility it is recommended to install it.
+
+  Background: SVG support is disabled for security reasons by default. Lets
+  keep it at that for now until we can better assess the situation.
 
 Example inventory
 -----------------
@@ -169,6 +182,16 @@ To setup ownCloud on a given host it should be included in the
 
 Note that the ``debops_service_owncloud`` group uses the default webserver,
 refer to :ref:`owncloud__ref_choosing_a_webserver`.
+
+Recommended settings
+--------------------
+
+.. code-block:: yaml
+
+   owncloud__config:
+
+     # https://docs.nextcloud.com/server/latest/admin_manual/configuration_server/config_sample_php_parameters.html#user-experience
+     default_phone_region: 'DE'
 
 .. _owncloud__ref_ansible_facts:
 

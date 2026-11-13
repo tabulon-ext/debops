@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage and configure the Apache HTTP Server
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_apache' ]
   become: True
 
@@ -16,12 +15,14 @@
   pre_tasks:
 
     - name: Prepare apache environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'apache'
         tasks_from: 'main_env'
       tags: [ 'role::apache', 'role::apache:env' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: ferm
       tags: [ 'role::ferm', 'skip::ferm' ]

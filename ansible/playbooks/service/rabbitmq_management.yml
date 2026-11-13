@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Configure RabbitMQ Management Console
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_rabbitmq_management' ]
   become: True
 
@@ -16,12 +15,14 @@
   pre_tasks:
 
     - name: Prepare rabbitmq_server environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'rabbitmq_server'
         tasks_from: 'main_env'
       tags: [ 'role::rabbitmq_server', 'role::secret', 'role::rabbitmq_server:config' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring', 'role::nginx' ]

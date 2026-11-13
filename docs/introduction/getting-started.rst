@@ -1,6 +1,6 @@
-.. Copyright (C) 2017-2019 Maciej Delmanowski <drybjed@gmail.com>
+.. Copyright (C) 2017-2021 Maciej Delmanowski <drybjed@gmail.com>
 .. Copyright (C) 2019      Tasos Alvas <tasos.alvas@qwertyuiopia.com>
-.. Copyright (C) 2017-2019 DebOps <https://debops.org/>
+.. Copyright (C) 2017-2021 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-or-later
 
 .. _getting-started:
@@ -14,6 +14,15 @@ Welcome to DebOps!
 
 You have :ref:`installed DebOps <install>` and are wondering where to go next?
 Here you can read about creating your first DebOps project and managing remote hosts.
+
+.. note:: DebOps has multiple versions or branches available, which might
+   contain different features. You can select the documentation of the version
+   or branch you are using at the bottom left of the page, in the "ReadTheDocs"
+   menu.
+
+   The DebOps v3.0 version, planned for release at the beginning of 2022 has
+   significantly changed the script user interface. You should switch the
+   documentation to an older version to get the correct instructions.
 
 .. contents::
    :local:
@@ -77,12 +86,12 @@ Your first project
 
 Begin by creating a "DebOps project". It's a directory which contains all of
 the data related to a given environment - Ansible inventory, passwords and
-other secrets, custom playbooks and roles. To do this, use the ``debops-init``
-command:
+other secrets, custom playbooks and roles. To do this, use the :command:`debops
+project init` command:
 
 .. code-block:: console
 
-   alice@laptop:~$ debops-init ~/myproject
+   alice@laptop:~$ debops project init ~/myproject
 
 This will create a new directory called ``myproject`` and populate it with some
 example directories and files. You will perform most of the commands from the
@@ -116,13 +125,13 @@ variables which, when set correctly in inventory, can save you a trip to the
 data center.
 
 To make sure that these variables apply to all hosts in your environment, you
-can include them in :command:`ansible/inventory/group_vars/all/` directory. A
+can include them in :file:`ansible/inventory/group_vars/debops_all_hosts/` directory. A
 common practice is to name the files inside inventory directories after
 variable prefixes, separately for each Ansible role. For example, variables
 related to :ref:`debops.sshd` role are stored in
-:file:`ansible/inventory/group_vars/all/sshd.yml`, variables used by the
+:file:`ansible/inventory/group_vars/debops_all_hosts/sshd.yml`, variables used by the
 :ref:`debops.postfix` role are written in
-:file:`ansible/inventory/group_vars/all/postfix.yml`, and so on. The same
+:file:`ansible/inventory/group_vars/debops_all_hosts/postfix.yml`, and so on. The same
 scheme can be used in other inventory groups or for separate hosts.
 
 ansible_user
@@ -145,8 +154,8 @@ It's customary to specify this variable directly in the
 .. code-block:: none
 
    [debops_all_hosts]
-   server    ansible_host=server.example.com ansible_user=ansible-admin
-   server    system_users__self_name=ansible-admin
+   server    ansible_host=server.example.com ansible_user=ansible
+   server    system_users__self_name=ansible
 
 On specific platforms you can set this variable to an automatically created
 username to make the remote host administration easier:
@@ -170,11 +179,11 @@ example:
    ---
    netbase__domain: 'example.com'
 
-By running the ``debops bootstrap`` command (see further down), your domain
-will be configured in the remote hosts' :file:`/etc/hosts` file. Additionally, the
-hostname will be changed to the one you specified in the Ansible inventory.
-After that is done, it's best to reboot the machine to make sure all of the
-changed settings are applied and are persistent.
+By running the :command:`debops run bootstrap` command (see further down), your
+domain will be configured in the remote hosts' :file:`/etc/hosts` file.
+Additionally, the hostname will be changed to the one you specified in the
+Ansible inventory.  After that is done, it's best to reboot the machine to make
+sure all of the changed settings are applied and are persistent.
 
 This variable won't have any effect on hosts that are not "bootstrapped", and
 are instead configured using Debian preseeding or LXC templates - these hosts
@@ -195,7 +204,7 @@ expected, but if you still are getting blocked, or to be sure that remote
 access won't be interrupted, you can define a list of IP addresses or CIDR
 subnets that will be allowed to connect to SSH without restrictions.
 
-To do that, in :file:`ansible/inventory/group_vars/all/sshd.yml` add:
+To do that, in :file:`ansible/inventory/group_vars/debops_all_hosts/sshd.yml` add:
 
 .. code-block:: yaml
 
@@ -285,8 +294,8 @@ Bootstrap a new host
 
 .. warning::
 
-  Bootstrapping a host without a configured ``netbase__domain`` will result in
-  a broken host configuration.
+  Bootstrapping a host without working DNS or a configured ``netbase__domain``
+  variable might result in a broken host configuration.
 
 At this point you most likely have to connect to that host using the ``root``
 account and specifying a password. To make that easier, you can use a special
@@ -295,13 +304,13 @@ this, execute the command:
 
 .. code-block:: console
 
-   alice@laptop:~/myproject$ debops bootstrap --limit server --user root --ask-pass
+   alice@laptop:~/myproject$ debops run bootstrap --limit server --user root --ask-pass
 
 Or, for short:
 
 .. code-block:: console
 
-   alice@laptop:~/myproject$ debops bootstrap -l server -u root -k
+   alice@laptop:~/myproject$ debops run bootstrap -l server -u root -k
 
 If you defined the ``ansible_user`` variable in the Ansible intentory for
 a given host to use a different UNIX account than your regular local account,
@@ -310,10 +319,10 @@ variable from the command line using Ansible "extra vars":
 
 .. code-block:: console
 
-   alice@laptop:~/myproject$ debops bootstrap -l server -e 'ansible_user=root' -k
+   alice@laptop:~/myproject$ debops run bootstrap -l server -e 'ansible_user=root' -k
 
 This command will execute the `DebOps bootstrap playbook`_ and use it to
-install a base set of packages needed by Ansible like ``python`` and
+install a base set of packages needed by Ansible like ``python3`` and
 :command:`sudo`, prepare a new administrator account named after your system
 user (``alice`` in our example) and allow that account full access to the
 ``root`` account using :command:`sudo`. Your SSH keys will be installed on
@@ -349,11 +358,16 @@ the configuration:
 
 .. code-block:: console
 
-   alice@laptop:~/myproject$ debops -l server
+   alice@laptop:~/myproject$ debops run site -l server
 
 This will start the :command:`ansible-playbook` command with the main DebOps
 playbook. This by default includes the `DebOps common playbook`_ with a
 default set of roles, and any additional playbooks, if they have been enabled.
+You can run only the common playbook to speed things up:
+
+.. code-block:: console
+
+   alice@laptop:~/myproject$ debops run common -l server
 
 The initial configuration might take 5-10 minutes on a reasonably fast machine.
 There are some steps, like Diffie-Hellman parameter generation, which might
@@ -423,7 +437,7 @@ new configuration on the host:
 
 .. code-block:: console
 
-   alice@laptop:~/myproject$ debops -l server
+   alice@laptop:~/myproject$ debops run site -l server
 
 This will apply the whole playbook with all the configuration on the specified
 server. However, to make this process faster, DebOps provides separate "service
@@ -432,22 +446,18 @@ as the first argument to the ``debops`` command:
 
 .. code-block:: console
 
-   alice@laptop:~/myproject$ debops service/dokuwiki -l server
+   alice@laptop:~/myproject$ debops run service/dokuwiki -l server
 
 This will tell the script to look for the playbook in several places:
 
-- :file:`playbooks/` and :command:`ansible/playbooks/` subdirectories in the project
-  directory;
-- :file:`debops-playbooks/playbooks/` subdirectory of the project directory, if
-  DebOps playbooks and roles are installed inside of it;
-- :file:`~/.local/share/debops/debops-playbooks/playbooks/` directory (default
-  install location);
+- in the collection of DebOps playbooks included in its Python package, or
+
+- in the :file:`ansible/playbooks/` subdirectory in the project directory.
 
 The first one found will be executed. You can use this to your advantage by
-adding custom playbooks in :file:`playbooks/` or :command:`ansible/playbooks/`
-directories, they need to be named with ``.yml`` extension. Custom roles can
-be placed in the :file:`roles/` or :command:`ansible/roles/` subdirectories located in the
-project directory.
+adding custom playbooks in :file:`ansible/playbooks/` directory, they need to
+be named with ``.yml`` extension. Custom roles can be placed in the
+:file:`ansible/playbooks/roles/` subdirectory located in the project directory.
 
 After Ansible finishes the configuration, you will need to go to the
 ``https://wiki.<domain>/install.php`` page to complete the installation
@@ -456,7 +466,7 @@ process.
 At this time you might find that the web browser you are using does not
 recognize the CA certificates served by the host. This happens when the server uses
 certificates signed by internal DebOps Certificate Authority instead of the
-"regular" ones. To fix that, consult the :ref:`debops.pki` role documentation (when it's available).
+"regular" ones. To fix that, consult the :ref:`debops.pki` role documentation.
 
 Where to go from here
 ---------------------

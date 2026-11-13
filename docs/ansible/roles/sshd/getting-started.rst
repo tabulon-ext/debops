@@ -1,6 +1,6 @@
-.. Copyright (C) 2013-2016 Maciej Delmanowski <drybjed@gmail.com>
+.. Copyright (C) 2013-2023 Maciej Delmanowski <drybjed@gmail.com>
 .. Copyright (C) 2015-2017 Robin Schneider <ypid@riseup.net>
-.. Copyright (C) 2014-2017 DebOps <https://debops.org/>
+.. Copyright (C) 2014-2023 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-only
 
 Getting started
@@ -17,8 +17,11 @@ Changes from Debian defaults
 The ``debops.sshd`` role will configure the OpenSSH server to lookup the client
 hostnames in DNS by setting the ``UseDNS`` option to ``yes`` (the Debian and
 upstream default is ``no``). This allows use of the DNS hostnames and domains
-in the authorized keys files and PAM access control rules. DNS lookup can be
-controlled using the :envvar:`sshd__use_dns` variable.
+in the authorized keys files and PAM access control rules.
+
+The ``AllowAgentForwarding`` and ``X11Forwarding`` options are set to ``no`` by
+default (Debian by default allows them). This should mitigate potential agent
+takeover attacks on remote hosts.
 
 The role will divert the original :file:`/etc/pam.d/sshd` configuration file
 and generate a new one, with PAM access control enabled and using the separate
@@ -40,7 +43,7 @@ different domain than the remote host.
 
 To disable the restricted access and allow connections to the ``root`` account
 from anywhere on the network, you can set in your Ansible inventory, for
-example in :file:`ansible/inventory/group_vars/all/pam_access.yml` file:
+example in :file:`ansible/inventory/group_vars/debops_all_hosts/pam_access.yml` file:
 
 .. code-block:: yaml
 
@@ -58,7 +61,7 @@ the :ref:`debops.sshd` role, for example by executing the command:
 
 .. code-block:: console
 
-   debops service/sshd -l <host> --tags role::pam_access --diff
+   $ debops run service/sshd -l <host> --tags role::pam_access --diff
 
 This command will apply the PAM access configuration defined by the
 :ref:`debops.sshd` role with modifications from the inventory; they won't be
@@ -78,14 +81,24 @@ file is present on the host, using Ansible local facts defined by the
 :ref:`debops.root_account` role. If the file is present, we assume that the
 sysadmin SSH keys are on the host, and password-based access to the ``root``
 account is disabled by setting the ``PermitRootLogin`` option to
-``without-password`` and the ``PasswordAuthentication`` option to ``no``.
+``prohibit-password`` to ``no``. The ``PasswordAuthentication`` option is set
+to ``no`` by default.
 
 If the SSH authorized keys file is not present, the host is assumed to not be
-fully provisioned yet. The ``PermitRootLogin`` option as well as the
-``PasswordAuthentication`` option will be set to ``yes`` to permit access to
-the ``root`` account via SSH. Note that the default PAM access policy set in
-the :envvar:`sshd__pam_access__dependent_rules` variable still applies and
-access to the ``root`` account will be limited to hosts on the same DNS domain.
+fully provisioned yet. The ``PermitRootLogin`` option will be set to ``no`` to
+deny access to the ``root`` account via SSH. Note that the default PAM access
+policy set in the :envvar:`sshd__pam_access__dependent_rules` variable still
+applies and access to the ``root`` account will be limited to hosts on the same
+DNS domain.
+
+To avoid locking the ``root`` account out, host deployments done with
+provisioning tools (``cloud-init``, Debian Preseeding, DebOps ``bootstrap``
+playbooks) should include one or more SSH public keys configured on the
+``root`` account to permit secure access. In an emergency, the
+:ref:`debops.root_account` role configures a strong password on the ``root``
+account which can be used on the host's console to login locally and restore
+access; generated passwords are stored in the :file:`secret/credentials/`
+directories, managed by the :ref:`debops.secret` role.
 
 Alternatively, if the sysadmin accounts are configured using the
 :ref:`debops.system_users` Ansible role, access to the ``root`` account via

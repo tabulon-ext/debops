@@ -347,8 +347,62 @@ Create a custom :program:`cron` task that restarts a service daily:
        mode: '0755'
        content: |
          #!/bin/sh
-         # {{ ansible_managed }}
+         # This file is managed remotely, all changes will be lost.
          test -x /usr/bin/service && systemctl restart service
+
+.. _resources__ref_pip:
+
+Python Virtual Environment management
+-------------------------------------
+
+The :ref:`debops.resources` role can be used to create and manage a Python
+Virtual Environment through the use of the `ansible.builtin.pip`__ Ansible
+module. Users can create new virtual environments and install Python packages
+inside of them.
+
+.. __: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/pip_module.html
+
+Virtual environments are defined using ``resources__*_pip`` default variables.
+Each variable is a list of YAML dictionaries with ``ansible.builtin.pip``
+module parameters (check its documentation for details). Some of the more
+important parameters:
+
+``name``
+  String or a YAML list of Python packages to install in a virtual environment
+  (if defined) or system-wide.
+
+``virtualenv``
+  Absolute path to the directory where Python virtual environment should be
+  deployed and managed. If not specified, the role will install Python packages
+  system-wide in :file:`/usr/local/` subdirectories.
+
+``owner``
+  UNIX account which should be the owner of a given Python environment. If not
+  specified, ``root`` UNIX account will be used by default.
+
+Examples
+~~~~~~~~
+
+Create an unprivileged UNIX account using the :ref:`debops.users` Ansible role.
+Create a virtualenv inside of the home directory and install Ansible and DebOps
+Python packages:
+
+.. code-block:: yaml
+
+   users__host_accounts:
+
+     - name: 'deploy'
+       group: 'deploy'
+       home: '/home/deploy'
+
+   resources__host_pip:
+
+     - owner: 'deploy'
+       virtualenv: '/home/deploy/venv/debops'
+       name:
+         - 'ansible-core'
+         - 'debops'
+
 
 .. _resources__ref_acl:
 
@@ -425,6 +479,44 @@ Parameters related to ACL
     Optional. If not specified or ``present``, the ACL entry will be created.
     If ``absent``, the ACL entry will be removed. The ``query`` state doesn't
     make sense in this context and shouldn't be used.
+
+
+.. _resources__ref_replacements:
+
+resources__replacements
+-----------------------
+
+The ``resources__*_replacements`` variables can be used to modify existing
+files using regexp matches. The role uses the `ansible.builtin.replace`__
+Ansible module to perform the operation. All parameters of this module should
+be supported.
+
+.. __: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/replace_module.html
+
+Examples
+~~~~~~~~
+
+Remove the ``use_authtok`` token from the PAM common password configuration
+file:
+
+.. code-block:: yaml
+
+   resources__replacements:
+
+     - path: '/etc/pam.d/common-password'
+       regexp: 'use_authtok\s+enforce_for_root'
+       replace: 'enforce_for_root'
+
+Syntax
+~~~~~~
+
+The ``resources__*_replacements`` variables are defined as list of YAML
+dictionary entries with specific parameters. Check the documentation of the
+``ansible.builtin.replace`` module to see the available parameters:
+
+.. code-block:: console
+
+   ansible-doc -t module ansible.builtin.replace
 
 
 .. _resources__ref_commands:

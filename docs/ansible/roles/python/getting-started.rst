@@ -35,6 +35,13 @@ a host. Role will automatically purge an existing Python 2.x packages if Python
 2.x operation is disabled; this can be leveraged to maintain Python 3.x-only
 setup, depending on the OS release used on the host.
 
+To support environments without proper DNS service, the bootstrap playbook can
+inject host entries into the :file:`/etc/hosts` configuration file, using the
+:envvar:`python__raw_etc_hosts` variable. This can be used to configure access
+to APT repositories via a HTTP proxy, for example. After bootstrapping, the
+:ref:`debops.netbase` Ansible role takes over the :file:`/etc/hosts` config
+file management.
+
 
 Example inventory
 -----------------
@@ -58,9 +65,29 @@ role in a "raw" mode, without fact gathering. This can be used to bootstrap
 Python support on a host, so that normal Ansible modules can be used
 afterwards:
 
-.. literalinclude:: ../../../../ansible/playbooks/service/python_raw.yml
+.. literalinclude:: ../../../../ansible/playbooks/scope/python/raw.yml
    :language: yaml
    :lines: 1,5-
+
+
+Role entry points
+-----------------
+
+The ``debops.python`` role supports multiple entry points, utilized by the
+playbooks provided with the role:
+
+``service/python`` | ``scope/python``
+  The main playbook which configures a Python runtime environment. Tags can be
+  used to apply specific roles or exclude roles that are not needed in a given
+  Ansible playbook run.
+
+  The :file:`service/python` playbook is included in the main DebOps
+  :file:`site.yml` playbook.
+
+``scope/python/raw``
+  This playbook can be used to update APT cache and install base Python runtime
+  environment that will support Ansible task execution on a Debian/Ubuntu host
+  using raw Ansible commands.
 
 
 Ansible tags
@@ -80,6 +107,9 @@ Available role tags:
 
 Other resources
 ---------------
+
+The :ref:`debops.resources` role can be used to manage pip and virtual
+environments, see :ref:`resources__ref_pip` documentation for more details.
 
 List of other useful resources related to the ``debops.python`` Ansible role:
 

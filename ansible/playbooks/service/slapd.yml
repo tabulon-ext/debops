@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage OpenLDAP service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_slapd' ]
   become: True
 
@@ -14,6 +13,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: ferm
       tags: [ 'role::ferm', 'skip::ferm' ]
@@ -24,6 +25,9 @@
       tags: [ 'role::tcpwrappers', 'skip::tcpwrappers' ]
       tcpwrappers__dependent_allow:
         - '{{ slapd__tcpwrappers__dependent_allow }}'
+
+    - role: cron
+      tags: [ 'role::cron', 'skip::cron' ]
 
     - role: logrotate
       tags: [ 'role::logrotate', 'skip::logrotate' ]
@@ -43,11 +47,13 @@
       tags: [ 'role::ldap', 'skip::ldap' ]
       ldap__dependent_tasks:
         - '{{ saslauthd__ldap__dependent_tasks }}'
+      when: slapd__saslauthd_enabled | bool
 
     - role: saslauthd
       tags: [ 'role::saslauthd', 'skip::saslauthd' ]
       saslauthd__dependent_instances:
         - '{{ slapd__saslauthd__dependent_instances }}'
+      when: slapd__saslauthd_enabled | bool
 
     - role: slapd
       tags: [ 'role::slapd', 'skip::slapd' ]

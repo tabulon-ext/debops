@@ -1,0 +1,135 @@
+# Copyright (C) 2020-2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2020-2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# This file contains the default DebOps configuration options. It will be
+# parsed by Jinja template engine before being passed over to the Python's
+# TOML parser. The 'env' dictionary contains the environment variables.
+
+[binaries]
+
+# Path to binary which will be used to execute 'ansible' command.
+# By default it will rely on the system's $PATH.
+ansible = "{{ env['DEBOPS_CMD_ANSIBLE'] | d('ansible') }}"
+
+# Path to binary which will be used to execute 'ansible-inventory' command.
+# By default it will rely on the system's $PATH.
+ansible-inventory = "{{ env['DEBOPS_CMD_ANSIBLE_INVENTORY'] | d('ansible-inventory') }}"
+
+# Path to binary which will be used to execute 'ansible-galaxy' command.
+# By default it will rely on the system's $PATH.
+ansible-galaxy = "{{ env['DEBOPS_CMD_ANSIBLE_GALAXY'] | d('ansible-galaxy') }}"
+
+# Path to binary which will be used to execute 'ansible-playbook' command.
+# By default it will rely on the system's $PATH.
+ansible-playbook = "{{ env['DEBOPS_CMD_ANSIBLE_PLAYBOOK'] | d('ansible-playbook') }}"
+
+# Path to binary which will be used to call the 'gpg(1)' commands to encrypt or
+# decrypt files. By default it will rely on the system's $PATH.
+gpg = "{{ env['DEBOPS_CMD_GPG'] | d('gpg') }}"
+
+# Path to binary which will be used to manage the secret directories encrypted
+# using 'encfs(1)' tool. By default it will rely on the system's $PATH.
+encfs = "{{ env['DEBOPS_CMD_ENCFS'] | d('encfs') }}"
+
+# Path to binary which will be used to call the 'git(1)' commands to manage git
+# repositories. By default it will rely on the system's $PATH.
+git = "{{ env['DEBOPS_CMD_GIT'] | d('git') }}"
+
+# Path to binary which will be used to manage the secret directories encrypted
+# using 'git-crypt(1)' tool. By default it will rely on the system's $PATH.
+git-crypt = "{{ env['DEBOPS_CMD_GITCRYPT'] | d('git-crypt') }}"
+
+# Path to binary which will be used to unmount the mounted 'encfs(1)' volume on
+# Darwin hosts (macOS). By default it will rely on the system's $PATH.
+umount = "{{ env['DEBOPS_CMD_UMOUNT'] | d('umount') }}"
+
+# Path to binary which will be used to unmount the mounted 'encfs(1)' volume on
+# hosts with FUSE support. By default it will rely on the system's $PATH.
+fusermount = "{{ env['DEBOPS_CMD_FUSERMOUNT'] | d('fusermount') }}"
+
+[git]
+
+# The default commit message used for new git repositories.
+init_message = "Initialize new DebOps project directory"
+
+[project.venv]
+
+# Enable an encapsulated Python virtual environment in the project directory,
+# managed by the 'debops project venv' command. Usually enabled at project
+# creation time with the 'debops project init --venv' command.
+enabled = false
+
+# Path to the Python virtual environment, relative to the project directory.
+path = ".debops/venv"
+
+# Path to the file with pinned Python package versions, relative to the
+# project directory.
+requirements = ".debops/requirements.txt"
+
+# Python interpreter used to create the virtual environment.
+python = "python3"
+
+[syslog]
+
+# Hostname or IP address of a syslog server where messages should be sent.
+# If address starts with a slash (/), it's assumed to be an UNIX socket.
+address = "/dev/log"
+
+# UDP port of a remote syslog server where messages will be sent.
+port = 514
+
+# Syslog facility to use when sending messages. Supported facilities:
+# kern, user, mail, daemon, auth, syslog, lpr, news, uucp, authpriv, ftp,
+# cron, local0, local1, local2, local3, local4, local5, local6, local7
+facility = "user"
+
+# Syslog level to use for syslog messages; the terminal output stays at
+# WARNING unless '-v' raises it, one step less verbose than the journal.
+# Supported levels are:
+# DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL
+level = "NOTICE"
+
+[version_check]
+
+# Enable checking for new DebOps versions at startup. When enabled,
+# DebOps periodically checks a configured source and displays a notice
+# on stderr if an update is available. This option is opt-in only.
+enabled = false
+
+# How often to check for updates, in hours. The result is cached locally,
+# so network calls only happen once per interval.
+check_interval = 24
+
+# Timeout in seconds for network requests (PyPI) and git subprocess calls.
+timeout = 5
+
+# PyPI package name to query when installed via pip/pipx.
+pypi_package = "debops"
+
+# PyPI JSON API URL template. The {package} placeholder is replaced with
+# the value of pypi_package.
+pypi_url = "https://pypi.org/pypi/{package}/json"
+
+# Name of the git remote to fetch and compare against for git checkouts.
+git_remote = "origin"
+
+# Optional URL of the canonical DebOps git repository to check against.
+# When set, the check fetches from this URL directly instead of the
+# configured git_remote. Use this when the local 'origin' is a fork, or
+# for self-hosted mirrors. When empty, the git_remote name is used and
+# the user's existing git credentials and configuration are respected.
+git_repo_url = ""
+
+[custom]
+
+# This section is reserved for custom configuration options defined
+# outside of DebOps. Scripts and integrations can store their parameters
+# here, read them with the 'debops config get' command and override them
+# from the environment using 'DEBOPS_CONFIG__CUSTOM__...' variables, for
+# example:
+#
+#     [custom.myscript]
+#     retries = 5
+#
+# DebOps does not use this section and will not define options in it.

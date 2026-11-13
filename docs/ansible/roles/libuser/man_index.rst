@@ -14,6 +14,7 @@ debops.libuser
    man_synopsis
    man_description
    getting-started
+   defaults/main
    defaults-detailed
 
 ..
@@ -21,4 +22,3 @@ debops.libuser
  mode: rst
  ispell-local-dictionary: "american"
  End:
-

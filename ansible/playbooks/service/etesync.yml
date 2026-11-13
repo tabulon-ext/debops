@@ -14,6 +14,8 @@
 
   roles:
 
+    - role: 'global_handlers'
+
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring',
               'role::nginx', 'role::etesync' ]
@@ -25,8 +27,10 @@
     - role: apt_preferences
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
       apt_preferences__dependent_list:
-        - '{{ gunicorn__apt_preferences__dependent_list }}'
         - '{{ nginx__apt_preferences__dependent_list }}'
+
+    - role: cron
+      tags: [ 'role::cron', 'skip::cron' ]
 
     - role: logrotate
       tags: [ 'role::logrotate', 'skip::logrotate' ]

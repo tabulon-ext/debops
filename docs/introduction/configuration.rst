@@ -8,6 +8,9 @@
 Configuration
 =============
 
+.. note:: This is documentation for the legacy DebOps configuration system and
+   it might be inaccurate.
+
 DebOps reads configuration files at several places. All configurations
 files found are merged and the values read later take precedence.
 
@@ -62,16 +65,17 @@ The ``[paths]`` section
   Default value: ``%(install-path)s/playbooks``
 
 ``template-paths``
-  List of comma-separated paths where ``template_src`` lookup plugin will look
-  for custom templates (alternative :file:`templates/` directories). You can use
-  this to override templates provided with official roles (when supported).
+  List of comma-separated paths where ``debops.debops.template_src`` lookup
+  plugin will look for custom templates (alternative :file:`templates/`
+  directories). You can use this to override templates provided with official
+  roles (when supported).
 
   Default value: none
 
 ``file-paths``
-  List of comma-separated paths where ``file_src`` lookup plugin will look for
-  custom files (alternative :file:`files/` directories). You can use this to
-  override files provided with official roles (when supported).
+  List of comma-separated paths where ``debops.debops.file_src`` lookup plugin
+  will look for custom files (alternative :file:`files/` directories). You can
+  use this to override files provided with official roles (when supported).
 
   Default value: none
 

@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage NetBox IPAM/DCIM application
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_netbox' ]
   become: True
 
@@ -14,6 +13,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring',
@@ -27,9 +28,10 @@
     - role: apt_preferences
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
       apt_preferences__dependent_list:
-        - '{{ gunicorn__apt_preferences__dependent_list }}'
-        - '{{ postgresql__apt_preferences__dependent_list }}'
         - '{{ nginx__apt_preferences__dependent_list }}'
+
+    - role: cron
+      tags: [ 'role::cron', 'skip::cron' ]
 
     - role: logrotate
       tags: [ 'role::logrotate', 'skip::logrotate' ]
@@ -45,14 +47,21 @@
       tags: [ 'role::python', 'skip::python', 'role::postgresql', 'role::gunicorn', 'role::netbox' ]
       python__dependent_packages3:
         - '{{ gunicorn__python__dependent_packages3 }}'
+        - '{{ ldap__python__dependent_packages3 }}'
         - '{{ netbox__python__dependent_packages3 }}'
         - '{{ nginx__python__dependent_packages3 }}'
         - '{{ postgresql__python__dependent_packages3 }}'
       python__dependent_packages2:
         - '{{ gunicorn__python__dependent_packages2 }}'
+        - '{{ ldap__python__dependent_packages2 }}'
         - '{{ netbox__python__dependent_packages2 }}'
         - '{{ nginx__python__dependent_packages2 }}'
         - '{{ postgresql__python__dependent_packages2 }}'
+
+    - role: ldap
+      tags: [ 'role::ldap', 'skip::ldap' ]
+      ldap__dependent_tasks:
+        - '{{ netbox__ldap__dependent_tasks }}'
 
     - role: postgresql
       tags: [ 'role::postgresql', 'skip::postgresql' ]

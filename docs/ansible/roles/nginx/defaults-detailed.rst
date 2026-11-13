@@ -210,9 +210,15 @@ Common webserver options
   List of files that will be included at the end of the server
   configuration using `include`.
 
+``toplevel_options``
+  Optional, String or YAML text block with top-level options (i.e. before any
+  ``server`` blocks in the generated configuration) for this server
+  configuration. Semicolons at the end of each line are required.
+
 ``options``
-  Optional, String or YAML text block with options for this server configuration.
-  Semicolons at the end of each line are required.
+  Optional, String or YAML text block with options (included inside the
+  relevant ``server`` block) for this server configuration. Semicolons at the
+  end of each line are required.
 
 Redirects
 ~~~~~~~~~
@@ -349,6 +355,12 @@ HTTPS and TLS
   intermediate+root CA certificate is required for this.
   FIXME: Rename to ocsp_stapling_verify
 
+``nginx_ocsp_resolvers``
+  Optional, string.  List of DNS servers used to for resolving. Among other things
+  used to resolve OCSP stapling but in general all dns queries (e.g. for proxy_path).
+  If it's empty, nginx role will try to use the nameservers from /etc/resolv.conf.
+  Currently only the first nameserver is used
+
 ``hsts_enabled``
   Optional, boolean. Defaults to ``True``. If this is set to ``True`` and HTTPS
   is enabled for this item, the `HTTP Strict Transport Security`_ header is set
@@ -427,8 +439,8 @@ Locations
        '~ ^/doc$': [ 'all' ]
 
 ``location_referers``
-  Optional. Dict with lists of valid referers accepted for a given
-  location, all other referers will be blocked by nginx. Each location
+  Optional. Dict with lists of valid referrers accepted for a given
+  location, all other referrers will be blocked by nginx. Each location
   needs to have corresponding entry in ``location`` dict. Examples:
 
   .. code-block:: yaml
@@ -462,9 +474,37 @@ Locations
 
        referers: [ '{{ ansible_fqdn }}' ]
 
-  ``allow`` and ``deny``
-    Lists of hosts or CIDR ranges to allow or deny, lack of deny implies
-    ``deny all;`` at the end of the allow list.
+  ``access_policy``
+    Optional, string. Specify a named "access policy" to use for this location.
+    Refer to ``nginx_access_policy_allow_map`` and similar variables for more
+    information.
+
+  ``satisfy``
+    Optional, string. Defaults to ``nginx_default_satisfy``.
+    Set the location behaviour to either accept any of ``allow, auth``
+    configuration restrictions, or require all of them to match.  By default, any
+    restriction by itself will match.  Choices: ``any``, ``all``
+
+  ``allow``
+    Optional, string or list of strings.
+    IP addresses or CIDR networks which can access the given location.
+    Automatically adds ``deny: all`` at the end of the list.
+
+  ``auth_basic``
+    Optional, boolean. Enable HTTP Basic Authentication for this location.
+
+  ``auth_basic_realm``
+    Optional. String which will be displayed to the user in the HTTP Basic Auth
+    dialog box.
+    Defaults to ``nginx_default_auth_basic_realm``.
+
+  ``auth_basic_name``
+    Optional, string. Required with ``auth_basic``. Specifies the name of the
+    htpasswd file used for this location authentication. htpasswd files are
+    stored in :file:`/etc/nginx/private/` directory.
+
+    You can use ``auth_basic_filename`` and specify the full path to the
+    htpasswd file to use; file needs to be readable by nginx system user.
 
   ``options``
     String or YAML text block with options for this location block, semicolons
@@ -560,14 +600,6 @@ HTTP security headers
 ``frame_options``
   Optional, string. Value of the ``X-Frame-Options`` HTTP header field. Set to ``{{ omit }}``
   to not send the header field. Defaults to ``SAMEORIGIN``.
-
-``floc_optout``
-  Optional, boolean. If not specified or ``True``, the server will send the
-  ``Permissions-Policy`` HTTP header which will tell the browser to opt-out
-  from the `Federated Learning of Cohorts`__ feature. If ``False``, the header
-  will not be configured for a given website.
-
-  .. __: https://github.com/WICG/floc
 
 Search engine optimization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -7,6 +7,14 @@
 ### Ansible ###
 *.retry
 ansible/releases/
+.ansible/
+
+# Ignore generated configuration file
+/ansible.cfg
+
+# Ignore the generated CREDITS file. It is staged with 'git add -f' by the
+# 'make credits' command and committed in the release commits
+/CREDITS
 
 ### Emacs ###
 # -*- mode: gitignore; -*-
@@ -31,6 +39,7 @@ __pycache__/
 debops.egg-info/
 dist/
 build/
+src/debops/__version__.py
 VERSION
 
 # C extensions
@@ -47,6 +56,10 @@ docs/ansible/roles/*/defaults
 
 # nose2
 .coverage
+
+# Mutation testing (mutmut)
+/mutants/
+.mutmut-cache
 
 ### Vagrant ###
 .vagrant/

@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage Redis server
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_redis_server' ]
   become: True
 
@@ -16,18 +15,20 @@
   pre_tasks:
 
     - name: Prepare sysfs environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'sysfs'
         tasks_from: 'main_env'
       tags: [ 'role::sysfs', 'role::secret' ]
 
     - name: Prepare redis_server environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'redis_server'
         tasks_from: 'main_env'
       tags: [ 'role::redis_server', 'role::ferm' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: secret
       tags: [ 'role::secret', 'role::sysfs' ]

@@ -259,7 +259,7 @@ dictionaries with specific parameters:
   will be stored. If ``absent``, the host configuration will be removed, but
   running backup jobs will not be stopped and existing snapshots will not be
   touched. If ``ignore``, a given configuration entry will not be evaluated
-  druing role execution. This can be used to conditionally activate
+  during role execution. This can be used to conditionally activate
   configuration entries.
 
 ``dest_root``
@@ -283,7 +283,7 @@ dictionaries with specific parameters:
   This parameter can also be defined as a YAML dictionary, with dictionary key
   specifying the source filesystem path, and dictionary value specifying the
   destination path, relative to ``snapshot_root`` directory. This can be used
-  to separte different filesystem snapshots into their own subdirectories.
+  to separate different filesystem snapshots into their own subdirectories.
 
 ``options``
   Optional. List of the :file:`rsnapshot.conf` configuration options, defined
@@ -324,7 +324,7 @@ dictionaries with specific parameters:
   packages specified in the :envvar:`rsnapshot__host_packages` variable (by
   default ``rsync``) on the remote host to back up and set up the
   :command:`/usr/local/bin/rrsync` wrapper script. If these tasks cannot or
-  shouldn't be performed on the remote host, you can disable them by seeting
+  shouldn't be performed on the remote host, you can disable them by setting
   this parameter to ``False``.
 
 ``rrsync_source``
@@ -333,7 +333,7 @@ dictionaries with specific parameters:
   :file:`/usr/share/doc/rsync/scripts/rrsync`). The role will copy the script
   to the :file:`/usr/local/bin/` directory and make it executable. The role
   will automatically detect any tarballs with the ``.gz`` extension and extract
-  their contents; the ``.gz`` extenion should not be included in the path
+  their contents; the ``.gz`` extension should not be included in the path
   specified in this parameter.
 
 ``rrsync_binary``
@@ -417,7 +417,7 @@ Define a list of file patterns to exclude from backups:
      - '/no-backup'
      - '/scratch'
 
-Include eveyrthing in the backup, barring any excluded files:
+Include everything in the backup, barring any excluded files:
 
 .. code-block:: yaml
 
@@ -534,7 +534,9 @@ interpret a given entry using specific parameters:
   specified, an ``unknown`` section will be used by default.
 
 ``weight``
-  Optional. A positive or negative number which modifies the "weight" of
-  a given configuration option. The weight affects the order of configuration
-  options in a given section; use negative number to move a given option higher
-  in the file, and positive number to move it lower in the file.
+  Optional. A positive or negative number which selects the placement zone of
+  a given configuration option within its section: negative values move it to
+  the top, ``0`` (the default) keeps it in the middle in source order, and
+  positive values move it to the bottom. The magnitude of the value does not
+  matter; use ``anchor_to`` for ordering relative to a specific option. See
+  :ref:`universal_configuration_advanced_weight` for details.

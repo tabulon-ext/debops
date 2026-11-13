@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage RStudio Server service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_rstudio_server' ]
   become: True
 
@@ -14,6 +13,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring',
@@ -34,8 +35,6 @@
       apt_preferences__dependent_list:
         - '{{ nginx__apt_preferences__dependent_list }}'
         - '{{ cran__apt_preferences__dependent_list }}'
-        - '{{ java__apt_preferences__dependent_list
-              if cran__java_integration|bool else [] }}'
 
     - role: ferm
       tags: [ 'role::ferm', 'skip::ferm' ]
@@ -54,10 +53,15 @@
       nginx__dependent_servers:
         - '{{ rstudio_server__nginx__dependent_servers }}'
 
+    - role: extrepo
+      tags: [ 'role::extrepo', 'skip::extrepo', 'role::rstudio_server' ]
+      extrepo__dependent_sources:
+        - '{{ java__extrepo__dependent_sources }}'
+
     - role: java
       tags: [ 'role::java', 'skip::java' ]
       java__install_jdk: True
-      when: cran__java_integration|bool
+      when: cran__java_integration | bool
 
     - role: cran
       tags: [ 'role::cran', 'skip::cran' ]

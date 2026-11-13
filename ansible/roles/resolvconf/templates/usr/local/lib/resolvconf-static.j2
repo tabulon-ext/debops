@@ -6,22 +6,31 @@
 
 # {{ ansible_managed }}
 
-static_enabled="{{ 'true' if resolvconf__static_content|d() else 'false' }}"
+static_enabled="{{ 'true' if resolvconf__static_content | d() else 'false' }}"
 static_filename="/run/resolvconf/interface/{{ resolvconf__static_filename }}"
 
 reload_resolvconf () {
     # Don't try to restart resolvconf under systemd if it's not running
     # This avoids issues with resolvconf starting early during boot
+    # During early boot resolvconf is not active, but activating. It is already
+    # ready to be updated with resolvconf -u. Otherwise static config is
+    # not applied
     if [ -d /run/systemd/system ]; then
-        if [ "$(systemctl is-active resolvconf.service)" = "active" ] ; then
-            resolvconf -u
-        fi
+        state=$(systemctl is-active resolvconf.service)
+        case $state in
+            active|activating) echo "resolvconf is active or activating." && resolvconf -u;;
+        esac
     else
         resolvconf -u
     fi
 }
 
 if [ "${static_enabled}" = "true" ] ; then
+
+    # Ensure that the parent directories exist
+    if ! [ -d "$(dirname "${static_filename}")" ] ; then
+        mkdir -p "$(dirname "${static_filename}")"
+    fi
 
     # shellcheck disable=SC1117
     cat <<EOF > "${static_filename}"

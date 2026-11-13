@@ -7,11 +7,11 @@
 
 debug_level = 0
 
-uris = {{ dovecot__ldap_uri|join(",") }}
+uris = {{ dovecot__ldap_uri | join(",") }}
 ldap_version = 3
 
 tls = '{{ "yes"
-        if (dovecot__ldap_start_tls|bool)
+        if (dovecot__ldap_start_tls | bool)
         else "no" }}'
 tls_ca_cert_dir = {{ dovecot__tls_ca_cert_dir }}
 tls_require_cert = hard
@@ -24,15 +24,17 @@ tls_require_cert = hard
 auth_bind = yes
 
 scope = subtree
-base = {{ dovecot__ldap_people_dn|join(",") }}
+base = {{ dovecot__ldap_people_dn | join(",") }}
 dn = {{ dovecot__ldap_binddn }}
 dnpass = {{ dovecot__ldap_bindpw }}
 
 user_attrs = \
-    uid=home={{ dovecot_vmail_base }}/%d/%{ldap:uid},\
-    mailHomeDirectory=home={{ dovecot_vmail_base }}%{ldap:mailHomeDirectory},\
+    uid=home={{ dovecot__vmail_base }}/%d/%{ldap:uid},\
+    mailHomeDirectory=home={{ dovecot__vmail_base }}%{ldap:mailHomeDirectory},\
     mailQuota=quota_rule=*:bytes=%{ldap:{{ dovecot__ldap_quota_attribute }}}:storage=%$,\
     mailGroupACL=acl_groups,\
-    mailExpungeTrash=namespace/inbox/Maildir/Trash/autoexpunge
+    mailExpungeTrash={{ dovecot__ldap_trash_field }}
 
 user_filter = {{ dovecot__ldap_user_filter }}
+iterate_filter= {{ dovecot__ldap_user_list_filter }}
+iterate_attrs= {{ dovecot__ldap_user_list_filter_attribute }}=user

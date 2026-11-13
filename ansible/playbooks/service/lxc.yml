@@ -5,8 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage LXC hosts
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_lxc' ]
   become: True
 
@@ -16,9 +15,7 @@
 
   roles:
 
-    - role: resolvconf
-      tags: [ 'role::resolvconf', 'skip::resolvconf' ]
-      resolvconf__enabled: True
+    - role: 'global_handlers'
 
     - role: root_account
       tags: [ 'role::root_account', 'skip::root_account' ]
@@ -57,6 +54,8 @@
 # 'dnsmasq.yml' or the 'unbound.yml' playbooks, this should not impact
 # anything.
 
-- import_playbook: 'dnsmasq.yml'
+- name: Configure dnsmasq service
+  import_playbook: 'dnsmasq.yml'
 
-- import_playbook: 'unbound.yml'
+- name: Configure unbound service
+  import_playbook: 'unbound.yml'

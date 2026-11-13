@@ -1,5 +1,5 @@
-.. Copyright (C) 2017-2021 Maciej Delmanowski <drybjed@gmail.com>
-.. Copyright (C) 2017-2021 DebOps <https://debops.org/>
+.. Copyright (C) 2017-2024 Maciej Delmanowski <drybjed@gmail.com>
+.. Copyright (C) 2017-2024 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-or-later
 
 .. _upgrade_notes:
@@ -14,6 +14,163 @@ perform the upgrades between different stable releases.
 
 Unreleased
 ----------
+
+
+v3.4.0 (2026-11-05)
+-------------------
+
+Changes in inventory variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``copy_id_from`` property in :ref:`universal_configuration` items has
+been replaced by ``anchor_to``. Weight is now zone-based: negative → top
+zone, zero → middle (source order preserved), positive → bottom zone.
+The ``anchor_to`` property positions an item right after (weight ≥ 0) or
+right before (weight < 0) the referenced item. The ``id`` field is now
+sequential (0, 1, 2, …) and ``real_weight`` has been removed.
+
+If you use ``copy_id_from`` or weight-based ordering in inventory variables
+for these roles, replace ``copy_id_from`` with ``anchor_to`` in the
+affected items:
+
+  * :ref:`debops.sshd` — :envvar:`sshd__configuration`,
+    :envvar:`sshd__group_configuration`, :envvar:`sshd__host_configuration`
+
+  * :ref:`debops.postconf` —
+    :envvar:`postconf__postfix__dependent_maincf`,
+    :envvar:`postconf__postfix__dependent_mastercf`
+
+  * :ref:`debops.opendkim` — :envvar:`opendkim__config`,
+    :envvar:`opendkim__group_config`, :envvar:`opendkim__host_config`
+
+  * :ref:`debops.preseed` — :envvar:`preseed__configuration`,
+    :envvar:`preseed__group_configuration`,
+    :envvar:`preseed__host_configuration`
+
+  * :ref:`debops.resolvconf` — :envvar:`resolvconf__interface_order`,
+    :envvar:`resolvconf__group_interface_order`,
+    :envvar:`resolvconf__host_interface_order`
+
+  * :ref:`debops.postldap` —
+    :envvar:`postldap__postfix__dependent_maincf`
+
+  * :ref:`debops.mailman` — :envvar:`mailman__web_configuration`,
+    :envvar:`mailman__web_group_configuration`,
+    :envvar:`mailman__web_host_configuration`
+
+  * :ref:`debops.postfix` — :envvar:`postfix__maincf`,
+    :envvar:`postfix__group_maincf`, :envvar:`postfix__host_maincf`,
+    :envvar:`postfix__mastercf`, :envvar:`postfix__group_mastercf`,
+    :envvar:`postfix__host_mastercf`
+
+  * :ref:`debops.rsyslog` — :envvar:`rsyslog__configuration`,
+    :envvar:`rsyslog__group_configuration`,
+    :envvar:`rsyslog__host_configuration`
+
+
+v3.3.0 (2026-03-13)
+-------------------
+
+No significant changes which require a manual intervention.
+
+
+v3.2.0 (2024-09-16)
+-------------------
+
+No significant changes which require a manual intervention.
+
+
+v3.1.0 (2023-11-29)
+-------------------
+
+Changes in inventory variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- The :ref:`debops.dropbear_initramfs` role renamed the
+  ``dropbear_initramfs__*_authorized_keys`` keys according to the
+  ``ansible.posix.authorized_key`` module.
+  Variable ``dropbear_initramfs__authorized_keys_options`` has also
+  been renamed to ``dropbear_initramfs__authorized_keys_key_options``.
+
+- The :ref:`debops.sshd` role was refreshed and multiple variables related to
+  the contents of the :file:`/etc/ssh/sshd_config` configuration file were
+  removed. Their values are now managed using :ref:`universal_configuration`.
+  In the process, some of the configuration options will use their default
+  values from Debian or upstream. List of removed default variables:
+
+  - ``sshd__listen``
+  - ``sshd__banner``
+  - ``sshd__log_level``
+  - ``sshd__accept_env``
+  - ``sshd__x11_forwarding``
+  - ``sshd__permit_root_login``
+  - ``sshd__password_authentication``
+  - ``sshd__compression``
+  - ``sshd__use_dns``
+  - ``sshd__max_auth_tries``
+  - ``sshd__max_sessions``
+  - ``sshd__max_startups``
+  - ``sshd__login_grace_time``
+  - ``sshd__client_alive_count_max``
+  - ``sshd__privilege_separation``
+  - ``sshd__custom_options``
+  - ``sshd__default_allow_groups``
+  - ``sshd__allow_groups``
+  - ``sshd__group_allow_groups``
+  - ``sshd__host_allow_groups``
+  - ``sshd__authorized_keys``
+  - ``sshd__authorized_keys_system``
+  - ``sshd__authorized_keys_user``
+  - ``sshd__match_list``
+  - ``sshd__match_group_sftponly``
+
+- The :ref:`debops.apt` role has been refreshed and some variables changed
+  their data structures:
+
+  - :envvar:`apt__sources`,
+    :envvar:`apt__group_sources`, :envvar:`apt__host_sources`,
+    :envvar:`apt__combined_sources`
+  - :envvar:`apt__repositories`, :envvar:`apt__group_repositories`,
+    :envvar:`apt__host_repositories`
+  - :envvar:`apt__keys`, :envvar:`apt__group_keys`, :envvar:`apt__host_keys`
+
+  Some of the role variables were also removed:
+
+  - ``apt__sources_deploy_state`` (replaced with :envvar:`apt__deploy_state`)
+  - ``apt__sources_filter_duplicates``
+  - ``apt__source_types`` (replaced with :envvar:`apt__archive_types`)
+  - ``apt__remove_default_configuration``
+  - ``apt__install_recommends``
+  - ``apt__install_suggests``
+  - ``apt__deb822_*_repositories``
+  - ``apt__conf`` (replaced with :envvar:`apt__configuration`)
+  - ``apt__group_conf`` (replaced with :envvar:`apt__group_configuration`)
+  - ``apt__host_conf`` (replaced with :envvar:`apt__host_configuration`)
+  - ``apt__distribution_release_map``
+  - ``apt__distribution_suite_map``
+  - ``apt__distribution_suite``
+  - ``apt__distribution_suffix_map``
+  - ``apt__distribution_suffixes``
+  - ``apt__distribution_components_free``
+  - ``apt__distribution_components_nonfree``
+  - ``apt__distribution_components``
+  - ``apt__archive_source_map``
+  - ``apt__archive_source``
+  - ``apt__original_sources``
+  - ``apt__default_sources``
+  - ``apt__default_sources_state``
+  - ``apt__security_sources_state``
+  - ``apt__security_sources``
+  - ``apt__group_security_sources``
+  - ``apt__host_security_sources``
+
+- THe :ref:`debops.docker_server` role has been redesigned, many variables have
+  been removed and are no longer needed. Check the role documentation for
+  details.
+
+
+v3.0.0 (2022-02-17)
+-------------------
 
 Changes in the OpenLDAP support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,12 +228,12 @@ Redesign of the Debian Pressed support
 Changes in inventory variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- In the :ref:`debops.nginx` role some variables were renamed:
+- In the :ref:`debops.nginx` role one variable was removed:
 
   +-----------------------+-----------------------------+---------------+
   | Old variable name     | New variable name           | Changed value |
   +=======================+=============================+===============+
-  | ``nginx_enable_sdpy`` | :envvar:`nginx_enable_spdy` | No            |
+  | ``nginx_enable_sdpy`` | Removed                     | No            |
   +-----------------------+-----------------------------+---------------+
 
 
@@ -332,31 +489,31 @@ Inventory variable changes
 
 - Some variables in the :ref:`debops.docker_server` role have been renamed:
 
-  +--------------------------+------------------------------------+---------------+
-  | Old variable name        | New variable name                  | Changed value |
-  +==========================+====================================+===============+
-  | ``docker_server__graph`` | :envvar:`docker_server__data_root` | No            |
-  +--------------------------+------------------------------------+---------------+
+  +--------------------------+------------------------------+---------------+
+  | Old variable name        | New variable name            | Changed value |
+  +==========================+==============================+===============+
+  | ``docker_server__graph`` | ``docker_server__data_root`` | No            |
+  +--------------------------+------------------------------+---------------+
 
 - A few of the default variables in the :ref:`debops.dovecot` role have been
   renamed. Additionally some variables related to the Sieve plugin configuration also
   changed:
 
-  +------------------------------------+------------------------------------------+---------------+
-  | Old variable name                  | New variable name                        | Changed value |
-  +====================================+==========================================+===============+
-  | ``dovecot_ssl_protocols``          | :envvar:`dovecot_ssl_min_protocol`       | No            |
-  +------------------------------------+------------------------------------------+---------------+
-  | ``dovecot_firewall``               | Removed, see "Firewall configuration"    | No            |
-  +------------------------------------+------------------------------------------+---------------+
-  | ``dovecot_mail_location``          | :envvar:`dovecot_mail_location`          | Yes           |
-  +------------------------------------+------------------------------------------+---------------+
-  | ``dovecot_sieve``                  | :envvar:`dovecot_sieve_active_script`    | No            |
-  +------------------------------------+------------------------------------------+---------------+
-  | ``dovecot_managesieve_config_map`` | :envvar:`dovecot_managesieve_config_map` | Yes           |
-  +------------------------------------+------------------------------------------+---------------+
-  | ``dovecot_lda_config_map``         | :envvar:`dovecot_lda_config_map`         | Yes           |
-  +------------------------------------+------------------------------------------+---------------+
+  +------------------------------------+---------------------------------------+---------------+
+  | Old variable name                  | New variable name                     | Changed value |
+  +====================================+=======================================+===============+
+  | ``dovecot_ssl_protocols``          | ``dovecot_ssl_min_protocol``          | No            |
+  +------------------------------------+---------------------------------------+---------------+
+  | ``dovecot_firewall``               | Removed, see "Firewall configuration" | No            |
+  +------------------------------------+---------------------------------------+---------------+
+  | ``dovecot_mail_location``          | ``dovecot_mail_location``             | Yes           |
+  +------------------------------------+---------------------------------------+---------------+
+  | ``dovecot_sieve``                  | ``dovecot_sieve_active_script``       | No            |
+  +------------------------------------+---------------------------------------+---------------+
+  | ``dovecot_managesieve_config_map`` | ``dovecot_managesieve_config_map``    | Yes           |
+  +------------------------------------+---------------------------------------+---------------+
+  | ``dovecot_lda_config_map``         | ``dovecot_lda_config_map``            | Yes           |
+  +------------------------------------+---------------------------------------+---------------+
 
 - Some of the variables in the :ref:`debops.roundcube` role have been renamed:
 
@@ -777,7 +934,7 @@ Inventory variable changes
   | ``auth_nslcd_pam_authz_search_host_and_service`` | Removed                          | No                                               |
   +--------------------------------------------------+----------------------------------+--------------------------------------------------+
 
-- The :envvar:`sshd__default_allow_groups` default variable has been changed to
+- The ``sshd__default_allow_groups`` default variable has been changed to
   an empty list. The group-based access control has been moved to a PAM access
   control rules defined in the :envvar:`sshd__pam_access__dependent_rules`
   variable.
@@ -1122,8 +1279,8 @@ Inventory variable changes
   groups with ``root`` access defined by the :ref:`debops.system_groups` via
   Ansible local facts.
 
-- The contents of the :envvar:`sshd__allow_groups` variable have been moved to
-  the new :envvar:`sshd__default_allow_groups` variable. The new variable also
+- The contents of the ``sshd__allow_groups`` variable have been moved to
+  the new ``sshd__default_allow_groups`` variable. The new variable also
   uses the :ref:`debops.system_groups` Ansible local facts as a data source.
 
 - The ``bootstrap__raw`` and ``bootstrap__mandatory_packages`` variables have
@@ -1252,13 +1409,13 @@ Inventory variable changes
 - The :ref:`debops.netbox` role has been updated, some variable names were
   changed:
 
-  +------------------------------------+------------------------------------------+---------------+
-  | Old variable name                  | New variable name                        | Changed value |
-  +------------------------------------+------------------------------------------+---------------+
-  | ``netbox__config_netbox_username`` | :envvar:`netbox__config_napalm_username` | No            |
-  +------------------------------------+------------------------------------------+---------------+
-  | ``netbox__config_netbox_password`` | :envvar:`netbox__config_napalm_password` | No            |
-  +------------------------------------+------------------------------------------+---------------+
+  +------------------------------------+------------------------------------+---------------+
+  | Old variable name                  | New variable name                  | Changed value |
+  +------------------------------------+------------------------------------+---------------+
+  | ``netbox__config_netbox_username`` | ``netbox__config_napalm_username`` | No            |
+  +------------------------------------+------------------------------------+---------------+
+  | ``netbox__config_netbox_password`` | ``netbox__config_napalm_password`` | No            |
+  +------------------------------------+------------------------------------+---------------+
 
 - The variables that specify files to ignore in the new :ref:`debops.etckeeper`
   role have been renamed from their old versions in

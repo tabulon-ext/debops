@@ -63,7 +63,7 @@ configured in the Ansible local facts on a given host. Three levels of
 variables that can be used:
 
 :envvar:`core__facts`
-  Dictionary which should be defined in the :file:`inventory/group_vars/all/`
+  Dictionary which should be defined in the :file:`inventory/group_vars/debops_all_hosts/`
   group which applies to all hosts in the inventory.
 
 :envvar:`core__group_facts`
@@ -126,7 +126,7 @@ use it, you need to write your variable like this:
 
 .. code-block:: yaml
 
-   var: '{{ ansible_local.core.fact_name|d("fact_value") }}'
+   var: '{{ ansible_local.core.fact_name | d("fact_value") }}'
 
 That way Ansible won't emit an error about missing dictionary keys at each
 level of the ``ansible_local`` variable namespace.
@@ -139,7 +139,7 @@ only a single list of items, merged from separate variables on all levels of
 the inventory. You can set host tags using the variables:
 
 :envvar:`core__tags`
-  Global list of tags, should be defined in :file:`inventory/group_vars/all/`
+  Global list of tags, should be defined in :file:`inventory/group_vars/debops_all_hosts/`
 
 :envvar:`core__group_tags`
   List of tags for a specific group, should be defined in
@@ -165,7 +165,7 @@ Check if a given value is in the tag list:
 
    - name: Show debug output
      debug: msg="Test"
-     when: ansible_local|d() and ansible_local.tags|d() and
+     when: ansible_local | d() and ansible_local.tags | d() and
            'value' in ansible_local.tags
 
 Check if a given value is not in the tag list:
@@ -174,11 +174,38 @@ Check if a given value is not in the tag list:
 
    - name: Show debug output
      debug: msg="Test"
-     when: ansible_local|d() and ansible_local.tags|d() and
+     when: ansible_local | d() and ansible_local.tags | d() and
            'value' not in ansible_local.tags
 
 You can find a list of host tags in the documentation of various roles which use
 them.
+
+Cluster size awerness
+---------------------
+
+The ``debops.core`` role provides two facts computed at role execution, which
+provide an exact and rough estimate of the size of the environment managed by
+DebOps. These facts can be used in other Ansible roles to change their
+behaviour.
+
+``ansible_local.core.cluster_count``
+  Number of hosts in the main Ansible inventory group (``[debops_all_hosts]``
+  by default). This can also be set directly in the inventory to override the
+  calculated number using :envvar:`core__cluster_count` variable.
+
+``ansible_local.core.cluster_size``
+  A rough estimate of the cluster's size defined as a string with specific
+  prefix- and -suffix values, that other roles can check to decide their
+  configuration conditionally. The string is selected from a list defined in
+  the :envvar:`core__cluster_size` variable which can be overridden through the
+  Ansible inventory. Other Ansible roles can expect specific prefixes or
+  suffixes in this variable.
+
+The local facts are available for other roles to use so the ``debops.core``
+role doesn't need to be included in other Ansible playbooks. When the number of
+hosts changes, the ``debops.core`` role needs to be applied again to update the
+count, possibly followed by other roles that use the facts to update their
+configuration.
 
 System administrator accounts
 -----------------------------
@@ -206,7 +233,7 @@ Define list of admin accounts to create in the application:
 
 .. code-block:: yaml
 
-   application__admins: '{{ ansible_local.core.admin_users|d([]) }}'
+   application__admins: '{{ ansible_local.core.admin_users | d([]) }}'
 
 Custom distribution and release facts
 -------------------------------------
@@ -233,9 +260,9 @@ information about current distribution and release:
 
 .. code-block:: yaml
 
-   application__distribution: '{{ ansible_local.core.distribution|d(ansible_distribution) }}'
+   application__distribution: '{{ ansible_local.core.distribution | d(ansible_distribution) }}'
 
-   application__distribution_release: '{{ ansible_local.core.distribution_release|d(ansible_distribution_release) }}'
+   application__distribution_release: '{{ ansible_local.core.distribution_release | d(ansible_distribution_release) }}'
 
 .. _core__ref_unsafe_writes:
 
@@ -261,7 +288,7 @@ use the parameter in relevant tasks, like this:
        owner: 'root'
        group: 'root'
        mode: '0644'
-       unsafe_writes: '{{ True if (core__unsafe_writes|d(ansible_local.core.unsafe_writes|d()) | bool) else omit }}'
+       unsafe_writes: '{{ True if (core__unsafe_writes | d(ansible_local.core.unsafe_writes | d()) | bool) else omit }}'
 
 Note that the way :envvar:`core__unsafe_writes` is checked and takes precedence
 even from the context of another role is not otherwise done in DebOps.

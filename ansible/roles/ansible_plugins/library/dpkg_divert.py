@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 # Copyright (c) 2017-2018, Yann Amar <quidame@poivron.org>
 # Copyright (c) 2019,      Maciej Delmanowski <drybjed@gmail.com>
 # Copyright (c) 2019,      DebOps https://debops.org/
@@ -72,14 +69,15 @@ options:
               known as the diversion holder or the package the diversion
               belongs to.
             - The actual package does not have to be installed or even to exist
-              for its name to be valid. If not specified, the diversion is hold
-              by 'LOCAL', that is reserved by/for dpkg for local dversions.
+              for its name to be valid. If not specified, the diversion is held
+              by 'LOCAL', which is reserved for local diversions.
             - Removing or updating a diversion fails if the diversion exists
               and belongs to another package, unless I(force) is C(True).
     divert:
         description:
             - The location where the versions of file will be diverted.
-            - Default is to add suffix C(.distrib) to the file path.
+            - The default suffix is C(.distrib) for diversions defined by a
+              package and C(.dpkg-divert) for 'LOCAL' diversions.
         type: 'path'
     rename:
         description:

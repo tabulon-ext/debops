@@ -1,11 +1,10 @@
 ---
-# Copyright (C) 2014-2019 Maciej Delmanowski <drybjed@gmail.com>
-# Copyright (C) 2015-2019 DebOps <https://debops.org/>
+# Copyright (C) 2014-2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2015-2021 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage reprepro repositories
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_reprepro' ]
   become: True
 
@@ -13,12 +12,25 @@
                    | combine(inventory__group_environment | d({}))
                    | combine(inventory__host_environment  | d({})) }}'
 
+  pre_tasks:
+
+    - name: Prepare reprepro environment
+      ansible.builtin.import_role:
+        name: 'reprepro'
+        tasks_from: 'main_env'
+      tags: [ 'role::reprepro', 'role::nginx' ]
+
   roles:
 
+    - role: 'global_handlers'
+
     - role: keyring
-      tags: [ 'role::keyring', 'skip::keyring', 'role::nginx' ]
+      tags: [ 'role::keyring', 'skip::keyring', 'role::nginx', 'role::reprepro' ]
       keyring__dependent_apt_keys:
         - '{{ nginx__keyring__dependent_apt_keys }}'
+      keyring__dependent_gpg_user: '{{ reprepro__keyring__dependent_gpg_user }}'
+      keyring__dependent_gpg_keys:
+        - '{{ reprepro__keyring__dependent_gpg_keys }}'
 
     - role: apt_preferences
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]

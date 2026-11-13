@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage PostgreSQL client
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_postgresql' ]
   become: True
 
@@ -15,15 +14,12 @@
 
   roles:
 
+    - role: 'global_handlers'
+
     - role: keyring
       tags: [ 'role::keyring', 'skip::keyring', 'role::postgresql' ]
       keyring__dependent_apt_keys:
         - '{{ postgresql__keyring__dependent_apt_keys }}'
-
-    - role: apt_preferences
-      tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
-      apt_preferences__dependent_list:
-        - '{{ postgresql__apt_preferences__dependent_list }}'
 
     - role: python
       tags: [ 'role::python', 'skip::python', 'role::postgresql' ]

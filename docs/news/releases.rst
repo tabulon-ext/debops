@@ -1,5 +1,5 @@
-.. Copyright (C) 2019 Maciej Delmanowski <drybjed@gmail.com>
-.. Copyright (C) 2019 DebOps <https://debops.org/>
+.. Copyright (C) 2019-2024 Maciej Delmanowski <drybjed@gmail.com>
+.. Copyright (C) 2019-2024 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-or-later
 
 DebOps releases
@@ -110,9 +110,19 @@ How to use different releases?
 The "rolling" release
 ~~~~~~~~~~~~~~~~~~~~~
 
-You can use the :ref:`debops-update <cmd_debops-update>` script after
-:ref:`installing the "debops" Python package <install>` to clone the DebOps
-monorepo to a central location. See its documentation for more details.
+Good way to use the rolling release is to clone the DebOps monorepo and install
+the :command:`debops` scripts in development mode, either globally on the UNIX
+user account, or in a Python virtualenv. An example installation on the UNIX account:
+
+.. code-block:: shell
+
+   git clone https://github.com/debops/debops ~/src/github.com/debops/debops
+   pipx install --editable ~/src/github.com/debops/debops
+
+The :command:`debops` command will be installed as :file:`~/.local/bin/debops`,
+the :file:`~/.local/bin/` directory should be included in ``$PATH`` environment
+variable. Afterwards, you can use the :command:`git pull` command inside of
+the monorepo to get the latest changes in the DebOps project.
 
 If you plan to use the rolling release, keep an eye for changes in the project
 described in the :ref:`changelog` and the :ref:`upgrade_notes`.
@@ -135,31 +145,37 @@ you can install DebOps in various ways.
 Current release schedule
 ------------------------
 
-- Latest "stable" release: ``stable-2.3`` (`GitHub branch`__, `differences from
+- Latest "stable" release: ``stable-3.4`` (`GitHub branch`__, `differences from
   master`__, `Changelog`__)
 
-.. __: https://github.com/debops/debops/tree/stable-2.3
-.. __: https://github.com/debops/debops/compare/stable-2.3
-.. __: https://docs.debops.org/en/stable-2.3/news/changelog.html
+.. __: https://github.com/debops/debops/tree/stable-3.4
+.. __: https://github.com/debops/debops/compare/stable-3.4
+.. __: https://docs.debops.org/en/stable-3.4/news/changelog.html
 
 =============== ============ =============== ================
  Branch/Tag      Status       First release   End of support
 --------------- ------------ --------------- ----------------
-``stable-4.0``  Planned LTS  2023-06-xx      2028-06-xx
+``stable-4.0``  Planned LTS  2028-06-xx      2030-06-xx
 --------------- ------------ --------------- ----------------
 ...             ...          ...             ...
 --------------- ------------ --------------- ----------------
-``stable-3.2``  Planned      2023-01-xx      2024-01-xx
+``stable-3.5``  Planned      2027-06-xx      2030-06-xx
 --------------- ------------ --------------- ----------------
-``stable-3.1``  Planned      2022-06-xx      2023-06-xx
+``stable-3.4``  Supported    2026-11-xx      2029-11-xx
 --------------- ------------ --------------- ----------------
-``stable-3.0``  Planned      2022-01-xx      2023-01-xx
+``stable-3.3``  Supported    2026-03-13      2028-03-xx
 --------------- ------------ --------------- ----------------
-``stable-2.3``  Supported    2021-06-04      2022-06-04
+``stable-3.2``  Supported    2024-09-16      2027-01-xx
 --------------- ------------ --------------- ----------------
-``stable-2.2``  Supported    2021-01-31      2022-01-31
+``stable-3.1``  Retired      2023-11-29      2026-11-05
 --------------- ------------ --------------- ----------------
-``stable-2.1``  Supported    2020-06-21      2021-12-21
+``stable-3.0``  Retired      2022-02-17      2026-03-13
+--------------- ------------ --------------- ----------------
+``stable-2.3``  Retired      2021-06-04      2024-09-16
+--------------- ------------ --------------- ----------------
+``stable-2.2``  Retired      2021-01-31      2023-11-29
+--------------- ------------ --------------- ----------------
+``stable-2.1``  Retired      2020-06-21      2022-02-17
 --------------- ------------ --------------- ----------------
 ``stable-2.0``  Retired      2020-01-30      2021-06-30
 --------------- ------------ --------------- ----------------

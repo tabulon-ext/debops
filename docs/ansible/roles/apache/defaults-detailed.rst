@@ -41,7 +41,7 @@ Refer to the `Apache module index`_ for a full list of available modules upstrea
 The role provides multiple variables which can be used on different inventory
 levels. The :envvar:`apache__combined_modules` variable combines these YAML
 dictionaries together and determines the order in which module configuration
-"mask" the previous onces.
+"mask" the previous ones.
 
 The dictionary value can be a simple boolean corresponding to the ``enabled``
 option (as described below) or a dictionary by itself with the following
@@ -96,7 +96,7 @@ the role and should be done by the user of the role.
 The role provides multiple variables which can be used on different inventory
 levels. The :envvar:`apache__combined_snippets` variable combines these YAML
 dictionaries together and determine the order in which configuration
-"mask" the previous onces.
+"mask" the previous ones.
 
 The dictionary value can be a simple boolean corresponding to the ``enabled``
 option (as described below) or a dictionary by itself with the following
@@ -341,7 +341,7 @@ Common webserver options
 ``custom_log_condition``
   Optional, string.
   Allows to specify condition which controls whether or not to log a particular
-  request in access log. You can use it for exampe to skip logging health
+  request in access log. You can use it for example to skip logging health
   checks from your load balancer.
 
 Redirects
@@ -497,14 +497,6 @@ HTTP security headers
   Refer to `Referrer Policy`_ for more details. Note that this header is a
   draft as of 2016-10-11 but it is already supported by the majority of web
   browsers.
-
-``floc_optout``
-  Optional, boolean. If not specified or ``True``, the server will send the
-  ``Permissions-Policy`` HTTP header which will tell the browser to opt-out
-  from the `Federated Learning of Cohorts`__ feature. If ``False``, the header
-  will not be configured for a given website.
-
-  .. __: https://github.com/WICG/floc
 
 
 .. _apache__ref_vhost_apache_status:

@@ -121,9 +121,10 @@ General account parameters
   Only existing groups will be added to the account.
 
 ``append``
-  Optional, boolean. If ``True`` (default), the specified groups will be added
-  to the list of existing groups the account belongs to. If ``False``, all
-  other groups than those present on the group list will be removed stripped.
+  Optional, boolean. If ``True``, the specified groups will be added to the
+  list of existing groups the account belongs to. If ``False``, all other
+  groups than those present on the group list will be removed stripped.
+  Defaults to the value of :envvar:`system_users__default_append` variable.
 
 ``comment``
   Optional. A comment, or GECOS field configured for a specified UNIX account.
@@ -283,6 +284,10 @@ Parameters related to public SSH keys
   Optional, boolean. If ``True``, the role will remove all keys from the user's
   ``~/.ssh/authorized_keys`` file that are not specified in the ``sshkeys``
   parameter.
+
+``sshkeys_follow``
+  Optional, boolean. If ``True``, the role will follow symlinks to the user's
+  ``~/.ssh/authorized_keys`` file instead of replacing them.
 
 ``sshkeys_state``
   Optional. If not specified or ``present``, the SSH keys will be set on the

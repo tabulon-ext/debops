@@ -79,11 +79,11 @@ COMP="{{ auto_backup_compression }}"
 COMMCOMP={{ item.auto_backup_compression_level
             | default((auto_backup_compression == "pg_dump") | ternary(6,0)) }}
 
-# Additionally keep a copy of the most recent backup in a seperate directory.
+# Additionally keep a copy of the most recent backup in a separate directory.
 LATEST=no
 
 # Backup files extension
-EXT="sql{{ (auto_backup_compression == "pg_dump") | ternary(".gz", "") }}"
+EXT="{{ item.auto_backup_extension | d(postgresql_server__auto_backup_extension) }}"
 
 # Encyrption settings
 # (inspired by http://blog.altudov.com/2010/09/27/using-openssl-for-asymmetric-encryption-of-backups/)
@@ -116,4 +116,3 @@ PREBACKUP="{{ item.auto_backup_pre_script | d(postgresql_server__auto_backup_pre
 
 # Command to run after backups
 POSTBACKUP="{{ item.auto_backup_post_script | d(postgresql_server__auto_backup_post_script) }}"
-

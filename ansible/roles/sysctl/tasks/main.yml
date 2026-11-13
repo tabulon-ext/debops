@@ -11,19 +11,15 @@
 # Check the role commit history for details.
 
 - name: Import custom Ansible plugins
-  import_role:
+  ansible.builtin.import_role:
     name: 'ansible_plugins'
 
-- name: Import DebOps global handlers
-  import_role:
-    name: 'global_handlers'
-
 - name: Pre hooks
-  include: '{{ lookup("task_src", "sysctl/pre_main.yml") }}'
-  when: sysctl__enabled|bool
+  ansible.builtin.include_tasks: '{{ lookup("debops.debops.task_src", "sysctl/pre_main.yml") }}'
+  when: sysctl__enabled | bool
 
 - name: Make sure that Ansible local facts directory exists
-  file:
+  ansible.builtin.file:
     path: '/etc/ansible/facts.d'
     state: 'directory'
     owner: 'root'
@@ -31,84 +27,67 @@
     mode: '0755'
 
 - name: Save sysctl local facts
-  template:
+  ansible.builtin.template:
     src: 'etc/ansible/facts.d/sysctl.fact.j2'
     dest: '/etc/ansible/facts.d/sysctl.fact'
     owner: 'root'
     group: 'root'
     mode: '0755'
   notify: [ 'Refresh host facts' ]
+  tags: [ 'meta::facts' ]
 
 - name: Update Ansible facts if they were modified
-  meta: 'flush_handlers'
+  ansible.builtin.meta: 'flush_handlers'
 
-- name: Check current sysctl diversions
-  environment:
-    LC_ALL: 'C'
-  shell: set -o nounset -o pipefail -o errexit &&
-         dpkg-divert --list '/etc/sysctl.d/*.dpkg-divert' | awk '{print $NF}' || true
-  args:
-    executable: 'bash'
-  register: sysctl__register_diversions
-  when: sysctl__enabled|bool
-  check_mode: False
-  changed_when: False
+- name: Add/remove diversion of custom sysctl configuration files
+  debops.debops.dpkg_divert:
+    path: '/etc/sysctl.d/{{ item.filename | d(item.weight | string + "-" + item.name + ".conf") }}'
+    state: '{{ item.state | d("present") }}'
+    delete: True
+  loop: '{{ sysctl__combined_parameters | debops.debops.parse_kv_items }}'
+  loop_control:
+    label: '{{ {"name": item.name, "state": item.state | d("present")} }}'
+  when: (sysctl__enabled | bool and item.name is defined and item.name is truthy and
+         item.state | d('present') in ['present', 'absent'] and
+         item.divert | d(False) | bool)
 
-- name: Divert the custom sysctl configuration
-  command: dpkg-divert --quiet --local
-           --divert /etc/sysctl.d/{{ item.filename | d(item.weight|string + "-" + item.name + ".conf") }}.dpkg-divert
-           --rename /etc/sysctl.d/{{ item.filename | d(item.weight|string + "-" + item.name + ".conf") }}
-  with_items: '{{ sysctl__combined_parameters | parse_kv_items }}'
-  when: (sysctl__enabled|bool and item.name|d() and item.options|d() and
-         item.state|d('present') not in [ 'absent', 'ignore', 'init' ] and
-         (item.divert|d())|bool and
-          ('/etc/sysctl.d/' + (item.filename | d(item.weight|string + "-" + item.name + ".conf"))
-           + '.dpkg-divert') not in sysctl__register_diversions.stdout_lines)
-
-- name: Remove sysctl configuration files if requested
-  file:
-    path: '/etc/sysctl.d/{{ item.filename | d(item.weight|string + "-" + item.name + ".conf") }}'
+- name: Remove custom sysctl configuration files
+  ansible.builtin.file:
+    path: '/etc/sysctl.d/{{ item.filename | d(item.weight | string + "-" + item.name + ".conf") }}'
     state: 'absent'
-  with_items: '{{ sysctl__combined_parameters | parse_kv_items }}'
+  with_items: '{{ sysctl__combined_parameters | debops.debops.parse_kv_items }}'
   register: sysctl__register_config_removed
-  when: sysctl__enabled|bool and item.name|d() and item.state|d('present') == 'absent'
+  when: sysctl__enabled | bool and item.name is defined and item.name is truthy and item.state | d('present') == 'absent'
 
-- name: Generate sysctl configuration files
-  template:
+- name: Generate custom sysctl configuration files
+  ansible.builtin.template:
     src: 'etc/sysctl.d/parameters.conf.j2'
-    dest: '/etc/sysctl.d/{{ item.filename | d(item.weight|string + "-" + item.name + ".conf") }}'
+    dest: '/etc/sysctl.d/{{ item.filename | d(item.weight | string + "-" + item.name + ".conf") }}'
     owner: 'root'
     group: 'root'
     mode: '0644'
-  with_items: '{{ sysctl__combined_parameters | parse_kv_items }}'
+  loop: '{{ sysctl__combined_parameters | debops.debops.parse_kv_items }}'
+  loop_control:
+    label: '{{ item.name }}'
   register: sysctl__register_config_created
-  when: sysctl__enabled|bool and item.name|d() and item.options|d() and item.state|d('present') not in [ 'absent', 'ignore', 'init' ]
-
-- name: Revert original sysctl configuration
-  shell: rm -f /etc/sysctl.d/{{ item.filename | d(item.weight|string + "-" + item.name + ".conf") }}
-         ; dpkg-divert --quiet --local --rename --remove /etc/sysctl.d/{{ item.filename | d(item.weight|string + "-" + item.name + ".conf") }}
-  args:
-    warn: False
-  with_items: '{{ sysctl__combined_parameters | parse_kv_items }}'
-  when: (sysctl__enabled|bool and item.name|d() and item.state|d('present') == 'absent' and (item.divert|d())|bool and
-          ('/etc/sysctl.d/' + item.filename | d(item.weight|string + "-" + item.name + ".conf")
-           + '.dpkg-divert') in sysctl__register_diversions.stdout_lines)
+  when: sysctl__enabled | bool and item.name is defined and item.name is truthy and item.options is defined and item.options is truthy and item.state | d('present') not in ['absent', 'ignore', 'init']
 
 - name: Check sysctl command capabilities
-  shell: set -o nounset -o pipefail -o errexit &&
+  ansible.builtin.shell: set -o nounset -o pipefail -o errexit &&
          sysctl --help | grep -E '^\s+\-\-system\s+' || true
   args:  # noqa no-handler
     executable: 'bash'
   register: sysctl__register_system
-  when: (sysctl__enabled|bool and
+  changed_when: sysctl__register_system.changed | bool
+  when: (sysctl__enabled | bool and
          (sysctl__register_config_created is changed or
           sysctl__register_config_removed is changed))
   check_mode: False
 
 - name: Apply kernel parameters if they were modified
-  shell: |
+  ansible.builtin.shell: |
     set -o nounset -o pipefail -o errexit &&
-    {% if (sysctl__register_system.stdout|d()) %}
+    {% if (sysctl__register_system.stdout | d()) %}
     sysctl --system
     {% else %}
     sysctl -e -p $(find /etc/sysctl.d -mindepth 1 -maxdepth 1 -name '*.conf' -print0 | sort -z | xargs -r0)
@@ -116,10 +95,12 @@
     {% endif %}
   args:  # noqa no-handler
     executable: 'bash'
-  when: (sysctl__enabled|bool and
+  register: sysctl__register_apply
+  changed_when: sysctl__register_apply.changed | bool
+  when: (sysctl__enabled | bool and
          (sysctl__register_config_created is changed or
           sysctl__register_config_removed is changed))
 
 - name: Post hooks
-  include: '{{ lookup("task_src", "sysctl/post_main.yml") }}'
-  when: sysctl__enabled|bool
+  ansible.builtin.include_tasks: '{{ lookup("debops.debops.task_src", "sysctl/post_main.yml") }}'
+  when: sysctl__enabled | bool

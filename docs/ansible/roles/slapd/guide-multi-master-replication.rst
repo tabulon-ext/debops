@@ -4,16 +4,17 @@
 
 .. _slapd__ref_syncrepl_multi_master:
 
-Guide: N-Way Multi-Master replication
-=====================================
+Guide: N-Way Multi-Provider replication
+=======================================
 
-The `N-Way Multi-Master replication`__ can be used to create and manage
-multiple master LDAP directory servers that share the data between them. This
+`N-Way Multi-Provider replication`__ (previously referred to in the OpenLDAP
+documentation as N-Way Multi-Master replication) can be used to create and
+manage multiple LDAP directory servers that share the data between them. This
 configuration can provide better LDAP directory service availability via host
 and database redundancy, failover capability and easy sharing of the LDAP
 database contents across multiple sites.
 
-.. __: https://www.openldap.org/doc/admin24/replication.html#N-Way%20Multi-Master%20replication
+.. __: https://www.openldap.org/doc/admin24/replication.html#N-Way%20Multi-Provider%20Replication
 
 .. only:: html
 
@@ -25,7 +26,7 @@ Introduction
 ------------
 
 There are arguments for and against this setup (see the OpenLDAP documentation
-linked above). N-Way Multi-Master replication is a good solution for the core
+linked above). N-Way Multi-Provider replication is a good solution for the core
 infrastructure to provide redundancy and failover; it might be a wrong approach
 for providing LDAP directory services "closer" to the end-users, for this you
 might want to look into `other OpenLDAP replication topologies`__ (check out
@@ -34,10 +35,10 @@ the `Zytrax guide about OpenLDAP replication`__ as well).
 .. __: https://www.openldap.org/doc/admin24/replication.html
 .. __: http://www.zytrax.com/books/ldap/ch7/
 
-This guide shows how to implement N-Way Multi-Master replication of the LDAP
-directory using DebOps. You might want to check `example configuration`__ in
-the OpenLDAP documentation for comparsion. There's also `Zytrax guide`__
-available that also has a Multi-Master replication example.
+This guide shows how to implement N-Way Multi-Provider replication of the LDAP
+directory using DebOps. You might want to check the `example configuration`__
+in the OpenLDAP documentation for comparison. There's also a `Zytrax guide`__
+with a Multi-Master replication example.
 
 .. __: https://www.openldap.org/doc/admin24/replication.html#N-Way%20Multi-Master
 .. __: http://www.zytrax.com/books/ldap/ch7/#ol-syncrepl-mm
@@ -56,10 +57,10 @@ Requirements
 DNS configuration
 -----------------
 
-For flexibility, the LDAP directory cluster will be reachable to the clients
-using ``CNAME`` and ``SRV`` records. Here's an example :man:`dnsmasq(8)`
-configuration for 3 OpenLDAP cluster hosts and 1 OpenLDAP test host used for
-development:
+For flexibility, the LDAP directory cluster will be reachable by the clients
+using ``CNAME`` and :ref:`dns_configuration_srv`. Here's an example
+:man:`dnsmasq(8)` configuration for 3 OpenLDAP cluster hosts and 1 OpenLDAP
+test host used for development:
 
 .. code-block:: ini
 
@@ -81,16 +82,8 @@ development:
 
    cname = ldap-test.example.org,slapd-tests.example.org
 
-The LDAP clients that use the ``SRV`` records will by default connect to the
-``ldap1.example.org`` server, therefore you might expect increased traffic to
-it. Additional OpenLDAP servers will be used as fallback when
-``ldap1.example.org`` server is unreachable. With this setup it should be very
-easy to replace the OpenLDAP servers with new ones on the DNS level, without
-the need to reconfigure LDAP clients everywhere.
-
-Part of the cluster that is used for testing and development should be
-configured to connect directly to the ``ldap-test.example.org`` server and not
-use the ``SRV`` records.
+For a further explanation of this example configuration, see
+:ref:`dns_configuration_srv_example2`.
 
 Keep in mind that in the replicated ``cn=config`` configuration (see below) you
 should use the real server hostnames, and not the ``CNAME`` records, to avoid
@@ -141,32 +134,38 @@ configure the replication between the cluster nodes will be stored in the
 :file:`ansible/inventory/group_vars/slapd_masters_cluster1/slapd.yml` inventory
 file.
 
-The example OpenLDAP configuration for 3 master nodes, each replicating the
+This is an example OpenLDAP configuration for 3 nodes, each replicating the
 ``cn=config`` database and the main database:
 
 .. literalinclude:: examples/multi-master-replication.yml
    :language: yaml
    :lines: 1,5-
 
-The above configuration is available as a convenience in a separate
-:file:`examples/multi-master-replication.yml` file in the :ref:`debops.slapd`
+As a convenience, the above configuration is available as a separate file
+(:file:`examples/multi-master-replication.yml`) in the :ref:`debops.slapd`
 role documentation stored in the DebOps monorepo.
+
+.. warning::
+   The ``olcMultiProvider`` attribute was renamed from ``olcMirrorMode``
+   between OpenLDAP versions 2.4 and 2.5. Make sure to use the old name if
+   you are using an older release.
+
 
 Configuration notes
 ~~~~~~~~~~~~~~~~~~~
 
-- Cluster configuration is defined in a separate variable,
+- The cluster configuration is defined in a separate variable,
   :envvar:`slapd__cluster_tasks`, which will be included after the ACL tasks,
   but before the directory structure tasks. This should ensure that the cluster
-  configuration is present before initial directory structure creation.
+  configuration is performed before initial directory structure creation.
 
-- The support for the ``X-ORDERED`` LDAP extension via the ``ordered``
-  parameter is not used here, because the tasks contain attributes not
-  compatible with ``X-ORDERED`` syntax (``olcMirrorMode``) which have to be
-  activated at the same time.
+- The ``X-ORDERED`` LDAP extension (i.e. the ``ordered`` parameter) is not used
+  here because the tasks contain attributes (e.g. ``olcMirrorMode``) which are
+  incompatible with ``X-ORDERED`` syntax and which have to be activated at the
+  same time.
 
 - The ``olcServerID`` values and ``rid=`` values are unrelated to each other.
-  Each OpenLDAP server needs an unique ServerID.
+  Each OpenLDAP server needs a unique ServerID.
 
 - The ``rid=`` values need to be numbers from ``000`` to ``999``. A suggested
   way of using them is to use the first digit as a synchronization group (``0``
@@ -192,10 +191,10 @@ OpenLDAP servers in the cluster at once:
 
 .. code-block:: console
 
-   debops service/slapd -l slapd_masters_cluster1 --diff
+   debops run service/slapd -l slapd_masters_cluster1 --diff
 
-When the deployment is complete, OpenLDAP configuration should be defined on
-the group level instead of on the individual host level in the inventory. The
+When the deployment is complete, the OpenLDAP configuration should be defined
+on the group level instead of on an individual host level in the inventory. The
 OpenLDAP servers will synchronize the configuration between the nodes in both
 cases, but it might be confusing if you see configuration defined for one host
 suddenly "show up" on other nodes in the cluster.
@@ -203,11 +202,11 @@ suddenly "show up" on other nodes in the cluster.
 Some of the OpenLDAP configuration options, for example module loading and
 overlay setup should be done on only one node of the cluster at a time; the
 changes will be propagated automatically. Otherwise you will notice that during
-the Ansible run one more nodes have finished with an error. This happens when
+an Ansible run one or more nodes have finished with an error. This happens when
 the role tries to enable a functionality on multiple OpenLDAP cluster nodes at
 once, and the second time gets rejected by the cluster.
 
 Remember that only the OpenLDAP configuration is synchronized automatically.
 Other Ansible roles involved in the :ref:`debops.slapd` configuration, for
-example firewall of TCP Wrappers configuration,  still need to be applied on
+example firewall or TCP Wrappers configuration, still need to be applied on
 all hosts in the OpenLDAP cluster.

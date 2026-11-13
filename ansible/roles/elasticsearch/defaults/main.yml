@@ -63,8 +63,8 @@ elasticsearch__group: 'elasticsearch'
 # .. envvar:: elasticsearch__additional_groups [[[
 #
 # List of additional UNIX groups to which the Elasticsearch user will belong.
-elasticsearch__additional_groups: '{{ [ "ssl-cert" ]
-                                      if elasticsearch__pki_enabled|bool
+elasticsearch__additional_groups: '{{ ["ssl-cert"]
+                                      if elasticsearch__pki_enabled | bool
                                       else [] }}'
                                                                    # ]]]
                                                                    # ]]]
@@ -149,7 +149,7 @@ elasticsearch__allow_tcp: []
 #
 # Enable or disable support for TLS connection encryption based on DebOps PKI,
 # managed by the :ref:`debops.pki` Ansible role.
-elasticsearch__pki_enabled: '{{ (ansible_local.pki.enabled|d())|bool }}'
+elasticsearch__pki_enabled: '{{ (ansible_local.pki.enabled | d()) | bool }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__pki_base_path [[[
@@ -165,51 +165,85 @@ elasticsearch__pki_base_path: '{{ ansible_local.pki.base_path | d("/etc/pki/real
 elasticsearch__pki_realm: '{{ ansible_local.pki.realm | d("domain") }}'
 
                                                                    # ]]]
+# .. envvar:: elasticsearch__symlink_type [[[
+#
+# Some version combinations of Elasticsearch and Java do not support symlinked
+# X.509 certificates and keys located outside of the
+# :file:`/etc/elasticsearch/certs/` directory. By default the role will create
+# copies of the certificates and keys to circumvent that limitation.
+#
+# Supported values: ``link``, ``copy``.
+elasticsearch__symlink_type: 'copy'
+
+                                                                   # ]]]
+# .. envvar:: elasticsearch__ssl_default_symlinks [[[
+#
+# List of the symlinks to private key and X.509 certificate used by
+# Elasticsearch, located in the :file:`/etc/elasticsearch/certs/` directory.
+# See :ref:`elasticsearch__ref_ssl_symlinks` for more details.
+elasticsearch__ssl_default_symlinks:
+
+  - link: '{{ elasticsearch__pki_key_file }}'
+    src: '{{ elasticsearch__pki_base_path + "/" + elasticsearch__pki_realm + "/private/key.pem" }}'
+    mode: '0640'
+
+  - link: '{{ elasticsearch__pki_crt_file }}'
+    # Java applications don't work well with Diffie-Hellman parameters
+    # embedded in the certificate chain, so let's use the "plain" one instead.
+    src: '{{ elasticsearch__pki_base_path + "/" + elasticsearch__pki_realm + "/public/cert_intermediate.pem" }}'
+    mode: '0644'
+
+  - link: '{{ elasticsearch__pki_ca_file }}'
+    src: '{{ elasticsearch__pki_base_path + "/" + elasticsearch__pki_realm + "/public/intermediate_root.pem" }}'
+    mode: '0644'
+
+                                                                   # ]]]
+# .. envvar:: elasticsearch__ssl_symlinks [[[
+#
+# List of additional symlinks to private keys and X.509 certificates used by
+# Elasticsearch, located in the :file:`/etc/elasticsearch/certs/` directory.
+# See :ref:`elasticsearch__ref_ssl_symlinks` for more details.
+elasticsearch__ssl_symlinks: []
+
+                                                                   # ]]]
 # .. envvar:: elasticsearch__pki_ca_file [[[
 #
 # Name of the file which contains Certificate Authorities trusted by
 # Elasticsearch, relative to the PKI realm directory.
-elasticsearch__pki_ca_file: '{{ ansible_local.pki.ca | d("CA.crt") }}'
+elasticsearch__pki_ca_file: 'pki-root.pem'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__pki_key_file [[[
 #
 # Name of the file which contains the private key used by Elasticsearch for
 # HTTP and Transport communication, relative to the PKI realm directory.
-elasticsearch__pki_key_file: '{{ ansible_local.pki.key | d("default.key") }}'
+elasticsearch__pki_key_file: 'pki-key.pem'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__pki_crt_file [[[
 #
 # Name of the file which contains the X.509 certificate chain used by
 # Elasticsearch for HTTP and Transport communication, relative to the PKI realm
-# directory. Java applications don't work well with Diffie-Hellman parameters
-# embedded in the certificate chain, so let's use the "plain" one instead.
-elasticsearch__pki_crt_file: 'public/cert_intermediate.pem'
+# directory.
+elasticsearch__pki_crt_file: 'pki-cert_intermediate.pem'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__tls_ca_certificate [[[
 #
 # Absolute path of the Certificate Authority certificate used by Elasticsearch.
-elasticsearch__tls_ca_certificate: '{{ elasticsearch__pki_base_path + "/"
-                                       + elasticsearch__pki_realm + "/"
-                                       + elasticsearch__pki_ca_file }}'
+elasticsearch__tls_ca_certificate: '{{ "/etc/elasticsearch/certs/" + elasticsearch__pki_ca_file }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__tls_private_key [[[
 #
 # Absolute path of the private key used by Elasticsearch.
-elasticsearch__tls_private_key: '{{ elasticsearch__pki_base_path + "/"
-                                    + elasticsearch__pki_realm + "/"
-                                    + elasticsearch__pki_key_file }}'
+elasticsearch__tls_private_key: '{{ "/etc/elasticsearch/certs/" + elasticsearch__pki_key_file }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__tls_certificate [[[
 #
 # Absolute path of the X.509 certificate used by Elasticsearch.
-elasticsearch__tls_certificate: '{{ elasticsearch__pki_base_path + "/"
-                                    + elasticsearch__pki_realm + "/"
-                                    + elasticsearch__pki_crt_file }}'
+elasticsearch__tls_certificate: '{{ "/etc/elasticsearch/certs/" + elasticsearch__pki_crt_file }}'
                                                                    # ]]]
                                                                    # ]]]
 # Elastic X-Pack options [[[
@@ -226,14 +260,35 @@ elasticsearch__tls_certificate: '{{ elasticsearch__pki_base_path + "/"
 # is configured on the host. Otherwise the support will be disabled since it's
 # not useful in a standalone mode.
 elasticsearch__xpack_enabled: '{{ True
-                                  if (elasticsearch__pki_enabled|bool and
-                                      elasticsearch__allow_tcp|d())
+                                  if (elasticsearch__pki_enabled | bool and
+                                      elasticsearch__allow_tcp | d())
                                   else False }}'
                                                                    # ]]]
                                                                    # ]]]
 # Elasticsearch users and roles management [[[
 # --------------------------------------------
 
+# .. envvar:: elasticsearch__authentication_enabled [[[
+#
+# Enable or disable configuration of user authentication in the Elasticsearch
+# cluster. When disabled, the role will not try to configure user accounts
+# automatically on new installs.
+#
+# By default role tries to detect if a given ES node is included in the list of
+# initial master nodes, and if it is, configure authentication. Subsequent ES
+# nodes added to the cluster will not be configuring their own authentication.
+elasticsearch__authentication_enabled: '{{ True
+                                           if (elasticsearch__node_name
+                                               in elasticsearch__initial_master_nodes)
+                                           else False }}'
+
+                                                                   # ]]]
+# .. envvar:: elasticsearch__authentication_anonymous_access [[[
+#
+# Enable or disable anonymous user account access to the Elasticsearch cluster.
+elasticsearch__authentication_anonymous_access: False
+
+                                                                   # ]]]
 # .. envvar:: elasticsearch__api_base_url [[[
 #
 # The URL of the Elasticsearch API endpoint used to manage user accounts and
@@ -252,12 +307,21 @@ elasticsearch__api_base_url: '{{ "https://" + ansible_fqdn + ":9200" }}'
 elasticsearch__api_username: 'elastic'
 
                                                                    # ]]]
+# .. envvar:: elasticsearch__secret_path [[[
+#
+# Path to the directory in the :ref:`debops.secret` storage where passwords of
+# Elastcisearch built-in users will be stored.
+elasticsearch__secret_path: '{{ "elasticsearch/credentials/"
+                                + elasticsearch__cluster_name + "/built-in" }}'
+
+                                                                   # ]]]
 # .. envvar:: elasticsearch__api_password [[[
 #
 # The password used to access the Elasticsearch API, stored in the
 # :file:`secret/` directory, managed by the :ref:`debops.secret` Ansible role.
-elasticsearch__api_password: '{{ lookup("password", secret + "/elasticsearch/credentials/"
-                                       + "built-in/" + elasticsearch__api_username + "/password") }}'
+elasticsearch__api_password: '{{ lookup("password", secret + "/"
+                                 + elasticsearch__secret_path + "/"
+                                 + elasticsearch__api_username + "/password") }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__native_roles [[[
@@ -336,10 +400,10 @@ elasticsearch__combined_native_users: '{{ elasticsearch__native_users
 # Elasticsearch will listen on ``localhost`` and private IP addresses only. See
 # https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html
 # for more details.
-elasticsearch__network_host: '{{ [ "_local_", "_site_" ]
-                                 if (ansible_local.ferm.enabled|d() and
-                                     ansible_local.ferm.enabled|bool)
-                                 else [ "_local_" ] }}'
+elasticsearch__network_host: '{{ ["_local_", "_site_"]
+                                 if (ansible_local.ferm.enabled | d() and
+                                     ansible_local.ferm.enabled | bool)
+                                 else ["_local_"] }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__http_port [[[
@@ -367,7 +431,7 @@ elasticsearch__domain: '{{ ansible_domain }}'
 #
 # Name of the Elasticsearch cluster, should be the same on all of the cluster
 # nodes. By default it's based on the host domain name.
-elasticsearch__cluster_name: '{{ elasticsearch__domain | replace(".","-") }}'
+elasticsearch__cluster_name: '{{ elasticsearch__domain | replace(".", "-") }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__node_name [[[
@@ -393,7 +457,7 @@ elasticsearch__discovery_minimum_master_nodes: '{{ "1" if (elasticsearch__invent
 # .. envvar:: elasticsearch__gateway_recover_after_nodes [[[
 #
 # Number of Elasticsearch nodes required to enable cluster initial recovery
-# after full restart.
+# after full restart. Deprecated in Elasticsearch 7.7.0.
 elasticsearch__gateway_recover_after_nodes: '{{ elasticsearch__discovery_minimum_master_nodes }}'
                                                                    # ]]]
                                                                    # ]]]
@@ -465,9 +529,9 @@ elasticsearch__node_ingest: '{{ True
 # capabilities. If this variable is enabled, :command:`systemd` memlock limit
 # is configured.
 elasticsearch__memory_lock: '{{ True
-                                if (not (ansible_system_capabilities_enforced|d())|bool or
-                                    ((ansible_system_capabilities_enforced|d())|bool and
-                                     "cap_ipc_lock" in (ansible_system_capabilities|d([]))))
+                                if (not (ansible_system_capabilities_enforced | d()) | bool or
+                                    ((ansible_system_capabilities_enforced | d()) | bool and
+                                     "cap_ipc_lock" in (ansible_system_capabilities | d([]))))
                                 else False }}'
 
                                                                    # ]]]
@@ -485,17 +549,17 @@ elasticsearch__systemd_limit_memlock: 'infinity'
 # This variable defines a float value which will be used to select the JVM heap
 # size depending on the size of the available system RAM.
 elasticsearch__jvm_memory_heap_size_multiplier: '{{ "0.2"
-                                                    if (ansible_memtotal_mb|int / 2 <= 2048)
+                                                    if (ansible_memtotal_mb | int / 2 <= 2048)
                                                     else "0.45" }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__jvm_memory_min_heap_size [[[
 #
 # Specify the minimum JVM heap size, depending on the available system RAM.
-elasticsearch__jvm_memory_min_heap_size: '{{ (((ansible_memtotal_mb|int
-                                               * elasticsearch__jvm_memory_heap_size_multiplier|float)
+elasticsearch__jvm_memory_min_heap_size: '{{ (((ansible_memtotal_mb | int
+                                               * elasticsearch__jvm_memory_heap_size_multiplier | float)
                                                | round | int) | string + "m")
-                                             if (ansible_memtotal_mb|int / 2 <= 32768)
+                                             if (ansible_memtotal_mb | int / 2 <= 32768)
                                              else "32600m" }}'
 
                                                                    # ]]]
@@ -612,15 +676,34 @@ elasticsearch__default_configuration:
     value: '{{ elasticsearch__cluster_name }}'
     state: 'present'
 
+  - name: 'node.roles'
+    comment: 'Roles assigned to the node'
+    state: '{{ "present" if (elasticsearch__version is version("7.9.0", ">=") and elasticsearch__node_master) else "absent" }}'
+    value:
+      - 'master'
+
+  - name: 'node.roles'
+    state: '{{ "present" if (elasticsearch__version is version("7.9.0", ">=") and elasticsearch__node_data) else "absent" }}'
+    value:
+      - 'data'
+
+  - name: 'node.roles'
+    state: '{{ "present" if (elasticsearch__version is version("7.9.0", ">=") and elasticsearch__node_ingest) else "absent" }}'
+    value:
+      - 'ingest'
+
   - name: 'node.master'
     comment: 'Type of the node'
     value: '{{ elasticsearch__node_master }}'
+    state: '{{ "present" if (elasticsearch__version is version("7.9.0", "<")) else "absent" }}'
 
   - name: 'node.data'
     value: '{{ elasticsearch__node_data }}'
+    state: '{{ "present" if (elasticsearch__version is version("7.9.0", "<")) else "absent" }}'
 
   - name: 'node.ingest'
     value: '{{ elasticsearch__node_ingest }}'
+    state: '{{ "present" if (elasticsearch__version is version("7.9.0", "<")) else "absent" }}'
 
   - name: 'node.name'
     value: '{{ elasticsearch__node_name }}'
@@ -634,7 +717,9 @@ elasticsearch__default_configuration:
     value: '{{ elasticsearch__http_port }}'
     state: 'present'
 
-  - name: 'transport.tcp.port'
+  - name: '{{ "transport.tcp.port"
+              if (elasticsearch__version is version("7.1.0", "<"))
+              else "transport.port" }}'
     comment: 'Set a custom port for TCP transport'
     value: '{{ elasticsearch__transport_tcp_port }}'
     state: 'present'
@@ -657,6 +742,7 @@ elasticsearch__default_configuration:
       Prevent the "split brain" by configuring the majority of nodes
       (total number of master-eligible nodes / 2 + 1)
     value: '{{ elasticsearch__discovery_minimum_master_nodes }}'
+    state: '{{ "present" if (elasticsearch__version is version("7.0.0", "<")) else "absent" }}'
 
     # Reset the default host list
   - name: 'cluster.initial_master_nodes'
@@ -672,13 +758,14 @@ elasticsearch__default_configuration:
   - name: 'gateway.recover_after_nodes'
     comment: 'Block initial recovery after a full cluster restart until N nodes are started'
     value: '{{ elasticsearch__gateway_recover_after_nodes }}'
+    state: '{{ "present" if (elasticsearch__version is version("7.7.0", "<")) else "absent" }}'
 
   - name: 'action.destructive_requires_name'
     value: True
     state: 'present'
 
   - name: 'bootstrap.memory_lock'
-    value: '{{ True if elasticsearch__memory_lock|bool else False }}'
+    value: '{{ True if elasticsearch__memory_lock | bool else False }}'
     state: 'present'
 
   - name: 'path.data'
@@ -687,58 +774,69 @@ elasticsearch__default_configuration:
 
   - name: 'xpack.security.enabled'
     value: True
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.http.ssl.enabled'
-    value: True
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    value: '{{ elasticsearch__xpack_enabled | bool }}'
+    state: 'present'
 
   - name: 'xpack.security.http.ssl.verification_mode'
     value: 'certificate'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
     # The client verification is optional in HTTP communication to avoid
     # forcing Kibana and other clients to present their own X.509 client
     # certificates to the Elasticsearch service.
   - name: 'xpack.security.http.ssl.client_authentication'
     value: 'optional'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.http.ssl.key'
     value: '{{ elasticsearch__tls_private_key }}'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.http.ssl.certificate'
     value: '{{ elasticsearch__tls_certificate }}'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.http.ssl.certificate_authorities'
     value: '{{ elasticsearch__tls_ca_certificate }}'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.transport.ssl.enabled'
-    value: True
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    value: '{{ elasticsearch__xpack_enabled | bool }}'
+    state: 'present'
 
   - name: 'xpack.security.transport.ssl.verification_mode'
     value: 'certificate'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.transport.ssl.client_authentication'
     value: 'required'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.transport.ssl.key'
     value: '{{ elasticsearch__tls_private_key }}'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.transport.ssl.certificate'
     value: '{{ elasticsearch__tls_certificate }}'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
 
   - name: 'xpack.security.transport.ssl.certificate_authorities'
     value: '{{ elasticsearch__tls_ca_certificate }}'
-    state: '{{ "present" if elasticsearch__xpack_enabled|bool else "absent" }}'
+    state: '{{ "present" if elasticsearch__xpack_enabled | bool else "absent" }}'
+
+  - name: 'xpack.security.authc.anonymous'
+    raw: |
+      xpack.security.authc.anonymous:
+        username: 'anonymous_user'
+        roles: [ 'superuser' ]
+        authz_exception: True
+    state: '{{ "present"
+               if (elasticsearch__xpack_enabled | bool and
+                   elasticsearch__authentication_anonymous_access | bool)
+               else "absent" }}'
 
                                                                    # ]]]
 # .. envvar:: elasticsearch__configuration [[[
@@ -959,57 +1057,6 @@ elasticsearch__combined_plugins: '{{ lookup("flattened", (elasticsearch__plugins
                                      + elasticsearch__host_plugins)) }}'
                                                                    # ]]]
                                                                    # ]]]
-# Java Policy configuration [[[
-# -----------------------------
-
-# Java Policy defines what paths and resources can be accessed by the
-# Elasticsearch application. By default the file access is limited to the
-# :file:`/etc/elasticsearch/` directory, but in DebOps we want to grant access
-# to the PKI directories managed by the :ref:`debops.pki` role to support
-# encrypted communication in the cluster.
-
-# .. envvar:: elasticsearch__java_policy [[[
-#
-# This variable contains the contents of the :file:`java.policy` configuration
-# file for Elasticsearch.
-elasticsearch__java_policy: |
-  // default permissions granted to all domains
-  grant {
-      // allows anyone to listen on dynamic ports
-      permission java.net.SocketPermission "localhost:0", "listen";
-
-      // "standard" properies that can be read by anyone
-      permission java.util.PropertyPermission "java.version", "read";
-      permission java.util.PropertyPermission "java.vendor", "read";
-      permission java.util.PropertyPermission "java.vendor.url", "read";
-      permission java.util.PropertyPermission "java.class.version", "read";
-      permission java.util.PropertyPermission "os.name", "read";
-      permission java.util.PropertyPermission "os.version", "read";
-      permission java.util.PropertyPermission "os.arch", "read";
-      permission java.util.PropertyPermission "file.separator", "read";
-      permission java.util.PropertyPermission "path.separator", "read";
-      permission java.util.PropertyPermission "line.separator", "read";
-      permission java.util.PropertyPermission
-                     "java.specification.version", "read";
-      permission java.util.PropertyPermission "java.specification.vendor", "read";
-      permission java.util.PropertyPermission "java.specification.name", "read";
-      permission java.util.PropertyPermission
-                     "java.vm.specification.version", "read";
-      permission java.util.PropertyPermission
-                     "java.vm.specification.vendor", "read";
-      permission java.util.PropertyPermission
-                     "java.vm.specification.name", "read";
-      permission java.util.PropertyPermission "java.vm.version", "read";
-      permission java.util.PropertyPermission "java.vm.vendor", "read";
-      permission java.util.PropertyPermission "java.vm.name", "read";
-
-      permission java.io.FilePermission "{{ elasticsearch__pki_base_path }}/-", "read";
-      permission java.io.FilePermission "{{ elasticsearch__pki_base_path }}/", "read";
-      permission java.io.FilePermission "/etc/ssl/certs/-", "read";
-      permission java.io.FilePermission "/etc/ssl/certs/", "read";
-  };
-# ]]]
-# ]]]
 # Configuration for other Ansible roles [[[
 # -----------------------------------------
 

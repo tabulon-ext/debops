@@ -2,7 +2,7 @@
 # .. vim: foldmarker=[[[,]]]:foldmethod=marker
 
 # .. Copyright (C) 2015-2016 Maciej Delmanowski <drybjed@gmail.com>
-# .. Copyright (C) 2015-2017 DebOps <https://debops.org/>
+# .. Copyright (C) 2015-2022 DebOps <https://debops.org/>
 # .. SPDX-License-Identifier: GPL-3.0-only
 
 # .. _mariadb_server__ref_defaults:
@@ -27,8 +27,6 @@
 #
 # - ``mariadb_upstream``: use MariaDB engine from upstream repository
 #
-# - ``mysql``: use MySQL engine from Debian repository
-#
 # - ``mysql-5.6_galera-3``: use MySQL 5.6 engine with Galera from Codership
 #   repository
 #
@@ -41,19 +39,8 @@
 # - ``percona-5.7``: use Percona 5.7 from its upstream repository, it includes
 #   XtraDB and optionally TokuDB and MyRocks engines
 #
-# The choice depends on availability of MariaDB packages in a distribution.
 # Percona needs to be selected explicitly.
-mariadb_server__flavor: '{{ ansible_local.mariadb.flavor
-                            |d(mariadb_server__flavor_map[ansible_distribution_release] | d("mariadb")) }}'
-
-                                                                   # ]]]
-# .. envvar:: mariadb_server__flavor_map [[[
-#
-# List of Linux distributions where the default MariaDB packages are not
-# available, and MySQL should be used instead.
-mariadb_server__flavor_map:
-  'wheezy':  'mysql'
-  'precise': 'mysql'
+mariadb_server__flavor: '{{ ansible_local.mariadb.flavor | d("mariadb") }}'
 
                                                                    # ]]]
 # .. envvar:: mariadb_server__apt_key [[[
@@ -73,41 +60,46 @@ mariadb_server__apt_key_map:
   'mariadb': []
 
   'mariadb_upstream':
-    - id: '199369E5404BD5FC7D2FE43BCBCB082A1BB943DB'
-    - id: '177F4010FE56CA3336300305F1656F24C74CD1D8'
-    - repo: 'deb {{ mariadb_server__upstream_mirror }} {{ ansible_distribution_release }} main'
+    - id: '177F 4010 FE56 CA33 3630 0305 F165 6F24 C74C D1D8'
+      url: 'https://supplychain.mariadb.com/MariaDB-Server-GPG-KEY'
+      keyring: 'mariadb.asc'
+      repo: 'deb [arch=amd64,arm64 signed-by=/etc/apt/keyrings/mariadb.asc] {{ mariadb_server__upstream_mirror }} {{ ansible_distribution_release }} main'
 
   'mysql-5.6_galera-3':
     - id: '44B7345738EBDE52594DAD80D669017EBC19DDBA'
-    - repo: 'deb http://releases.galeracluster.com/mysql-wsrep-5.6/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
-    - repo: 'deb http://releases.galeracluster.com/galera-3/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
+      keyring: 'galera.asc'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/galera.asc] http://releases.galeracluster.com/mysql-wsrep-5.6/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/galera.asc] http://releases.galeracluster.com/galera-3/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
 
   'mysql-5.7_galera-3':
     - id: '44B7345738EBDE52594DAD80D669017EBC19DDBA'
-    - repo: 'deb http://releases.galeracluster.com/mysql-wsrep-5.7/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
-    - repo: 'deb http://releases.galeracluster.com/galera-3/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
+      keyring: 'galera.asc'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/galera.asc] http://releases.galeracluster.com/mysql-wsrep-5.7/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/galera.asc] http://releases.galeracluster.com/galera-3/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} main'
 
   'percona-8.0':
     - id: '4D1BB29D63D98E422B2113B19334A25F8507EFA5'
-    - repo: 'deb http://repo.percona.com/tools/apt {{ ansible_distribution_release }} main'
-    - repo: 'deb http://repo.percona.com/ps-80/apt {{ ansible_distribution_release }} main'
+      keyring: 'percona.asc'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/percona.asc] http://repo.percona.com/ps-80/apt {{ ansible_distribution_release }} main'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/percona.asc] http://repo.percona.com/tools/apt {{ ansible_distribution_release }} main'
 
   'percona-5.7':
     - id: '4D1BB29D63D98E422B2113B19334A25F8507EFA5'
-    - repo: 'deb http://repo.percona.com/tools/apt {{ ansible_distribution_release }} main'
-    - repo: 'deb http://repo.percona.com/ps-57/apt {{ ansible_distribution_release }} main'
+      keyring: 'percona.asc'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/percona.asc] http://repo.percona.com/ps-57/apt {{ ansible_distribution_release }} main'
+    - repo: 'deb [signed-by=/etc/apt/keyrings/percona.asc] http://repo.percona.com/tools/apt {{ ansible_distribution_release }} main'
 
                                                                    # ]]]
 # .. envvar:: mariadb_server__upstream_version [[[
 #
 # Version of the MariaDB upstream.
-mariadb_server__upstream_version: '10.1'
+mariadb_server__upstream_version: '12.rolling'
 
                                                                    # ]]]
 # .. envvar:: mariadb_server__upstream_mirror [[[
 #
 # URL of the MariaDB upstream mirror.
-mariadb_server__upstream_mirror: 'http://nyc2.mirrors.digitalocean.com/mariadb/repo/{{ mariadb_server__upstream_version }}/{{ ansible_distribution | lower }}'
+mariadb_server__upstream_mirror: 'http://dlm.mariadb.com/repo/mariadb-server/{{ mariadb_server__upstream_version }}/repo/{{ ansible_distribution | lower }}'
 
                                                                    # ]]]
 # .. envvar:: mariadb_server__base_packages [[[
@@ -219,7 +211,7 @@ mariadb_server__local_infile: False
 #
 # Configuration options related to the server security.
 mariadb_server__mysqld_security_options:
-  'local_infile':         '{{ "1" if mariadb_server__local_infile|bool else "0" }}'
+  'local_infile':         '{{ "1" if mariadb_server__local_infile | bool else "0" }}'
 
                                                                    # ]]]
 # .. envvar:: mariadb_server__mysqld_charset_options [[[
@@ -246,7 +238,7 @@ mariadb_server__mysqld_network_options:
 mariadb_server__mysqld_pki_options:
   name: 'pki-options'
   comment: 'Support for SSL connections'
-  state: '{{ "present" if mariadb_server__pki|bool else "absent" }}'
+  state: '{{ "present" if mariadb_server__pki | bool else "absent" }}'
   options:
     'ssl':
     'ssl_ca':     '{{ mariadb_server__pki_path + "/" + mariadb_server__pki_realm + "/" + mariadb_server__pki_ca }}'
@@ -262,7 +254,7 @@ mariadb_server__mysqld_pki_options:
 mariadb_server__mysqld_cluster_options:
   name: 'cluster-options'
   comment: 'Required for cluster operation'
-  state: '{{ "present" if mariadb_server__flavor in [ "mysql-5.6_galera-3", "percona", "percona-5.7" ] else "absent" }}'
+  state: '{{ "present" if mariadb_server__flavor in ["mysql-5.6_galera-3", "percona", "percona-5.7"] else "absent" }}'
   options:
     'binlog_format': 'ROW'
     'default_storage_engine': 'InnoDB'
@@ -314,7 +306,7 @@ mariadb_server__options: {}
 # Absolute path for the client configuration file managed by the
 # ``debops.mariadb_server`` Ansible role.
 mariadb_server__client_cnf_file: '{{ "/etc/mysql/mariadb.conf.d/90-client.cnf"
-                                     if (mariadb_server__register_confd.stat.exists|bool)
+                                     if (mariadb_server__register_confd.stat.exists | bool)
                                      else "/etc/mysql/conf.d/zz-client.cnf" }}'
 
                                                                    # ]]]
@@ -323,7 +315,7 @@ mariadb_server__client_cnf_file: '{{ "/etc/mysql/mariadb.conf.d/90-client.cnf"
 # Absolute path for the server configuration file managed by the
 # ``debops.mariadb_server`` Ansible role.
 mariadb_server__mysqld_cnf_file: '{{ "/etc/mysql/mariadb.conf.d/90-mysqld.cnf"
-                                     if (mariadb_server__register_confd.stat.exists|bool)
+                                     if (mariadb_server__register_confd.stat.exists | bool)
                                      else "/etc/mysql/conf.d/zz-mysqld.cnf" }}'
                                                                    # ]]]
                                                                    # ]]]
@@ -341,7 +333,7 @@ mariadb_server__append_groups: [ 'ssl-cert' ]
 #
 # Enable or disable support for SSL in MariaDB (using :ref:`debops.pki`).
 mariadb_server__pki: '{{ (True
-                      if (ansible_local.pki.enabled|d() and
+                      if (ansible_local.pki.enabled | d() and
                           mariadb_server__pki_realm in ansible_local.pki.known_realms)
                       else False) | bool }}'
 
@@ -349,13 +341,13 @@ mariadb_server__pki: '{{ (True
 # .. envvar:: mariadb_server__pki_path [[[
 #
 # Base path for PKI directory.
-mariadb_server__pki_path: '{{ ansible_local.pki.base_path|d("/etc/pki") }}'
+mariadb_server__pki_path: '{{ ansible_local.pki.base_path | d("/etc/pki") }}'
 
                                                                    # ]]]
 # .. envvar:: mariadb_server__pki_realm [[[
 #
 # Default PKI realm used by MariaDB server.
-mariadb_server__pki_realm: '{{ ansible_local.pki.realm|d("domain") }}'
+mariadb_server__pki_realm: '{{ ansible_local.pki.realm | d("domain") }}'
 
                                                                    # ]]]
 # .. envvar:: mariadb_server__pki_ca [[[

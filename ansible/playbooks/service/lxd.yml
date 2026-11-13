@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage LXD service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_lxd' ]
   become: True
 
@@ -15,9 +14,7 @@
 
   roles:
 
-    - role: resolvconf
-      tags: [ 'role::resolvconf', 'skip::resolvconf' ]
-      resolvconf__enabled: True
+    - role: 'global_handlers'
 
     - role: root_account
       tags: [ 'role::root_account', 'skip::root_account' ]
@@ -27,7 +24,7 @@
       keyring__dependent_gpg_user: '{{ golang__keyring__dependent_gpg_user }}'
       keyring__dependent_gpg_keys:
         - '{{ golang__keyring__dependent_gpg_keys }}'
-      golang__dependent_packages:
+      golang__dependent_packages:  # noqa var-naming[no-role-prefix]
         - '{{ lxd__golang__dependent_packages }}'
 
     - role: apt_preferences
@@ -40,6 +37,9 @@
       tags: [ 'role::golang', 'skip::golang' ]
       golang__dependent_packages:
         - '{{ lxd__golang__dependent_packages }}'
+
+    - role: cron
+      tags: [ 'role::cron', 'skip::cron' ]
 
     - role: logrotate
       tags: [ 'role::logrotate', 'skip::logrotate' ]
@@ -79,6 +79,8 @@
 # 'dnsmasq.yml' or the 'unbound.yml' playbooks, this should not impact
 # anything.
 
-- import_playbook: 'dnsmasq.yml'
+- name: Configure dnsmasq service
+  import_playbook: 'dnsmasq.yml'
 
-- import_playbook: 'unbound.yml'
+- name: Configure unbound service
+  import_playbook: 'unbound.yml'

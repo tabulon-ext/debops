@@ -1,0 +1,71 @@
+---
+# Copyright (C) 2023 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+#
+# Use `pre-commit autoupdate` to update this file.
+repos:
+  - repo: "https://github.com/pre-commit/pre-commit-hooks"
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+        exclude: ".*.j2"
+      - id: check-symlinks
+      - id: check-toml
+      # - id: check-yaml
+      - id: destroyed-symlinks
+      - id: debug-statements
+      - id: end-of-file-fixer
+        exclude: "^ansible/roles/sshd/templates/etc/ssh/ldap_authorized_keys_bindpw.j2$"
+      - id: fix-byte-order-marker
+      - id: fix-encoding-pragma
+        args:
+          - "--remove"
+      - id: mixed-line-ending
+        args:
+          - "--fix=lf"
+      - id: pretty-format-json
+        args:
+          - "--autofix"
+          - "--no-sort-keys"
+      - id: trailing-whitespace
+        exclude: "LICENSES/.*"
+  - repo: "https://github.com/codespell-project/codespell"
+    rev: v2.2.2
+    hooks:
+      - id: codespell
+        additional_dependencies:
+          - tomli
+  - repo: local
+    hooks:
+      - id: pycodestyle
+        name: pycodestyle (changed files)
+        entry: pycodestyle
+        language: python
+        additional_dependencies:
+          - "pycodestyle==2.15.0"
+        types: [python]
+#  - repo: "https://github.com/asottile/pyupgrade"
+#    rev: v3.2.2
+#    hooks:
+#      - id: pyupgrade
+#  - repo: "https://github.com/asottile/add-trailing-comma"
+#    rev: v2.3.0
+#    hooks:
+#      - id: add-trailing-comma
+#        args: [--py36-plus]
+#  - repo: "https://github.com/PyCQA/isort"
+#    rev: 5.10.1
+#    hooks:
+#      - id: isort
+#  - repo: "https://github.com/psf/black"
+#    rev: 22.10.0
+#    hooks:
+#      - id: black

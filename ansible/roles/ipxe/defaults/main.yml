@@ -1,8 +1,8 @@
 ---
 # .. vim: foldmarker=[[[,]]]:foldmethod=marker
 
-# .. Copyright (C) 2015-2019 Maciej Delmanowski <drybjed@gmail.com>
-# .. Copyright (C) 2015-2019 DebOps <https://debops.org/>
+# .. Copyright (C) 2015-2026 Maciej Delmanowski <drybjed@gmail.com>
+# .. Copyright (C) 2015-2026 DebOps <https://debops.org/>
 # .. SPDX-License-Identifier: GPL-3.0-only
 
 # .. _ipxe__ref_defaults:
@@ -22,8 +22,7 @@
 # .. envvar:: ipxe__base_packages [[[
 #
 # List of the default APT packages to install for iPXE support.
-ipxe__base_packages: [ 'ipxe', 'pax', 'cpio', 'syslinux-common',
-                       'openssl', 'ca-certificates' ]
+ipxe__base_packages: [ 'ipxe', 'pax', 'cpio', 'syslinux-common' ]
 
                                                                    # ]]]
 # .. envvar:: ipxe__packages [[[
@@ -38,7 +37,14 @@ ipxe__packages: []
 # .. envvar:: ipxe__tftp_root [[[
 #
 # Absolute path to the TFTP root directory.
-ipxe__tftp_root: '{{ ansible_local.tftpd.directory|d(ansible_local.dnsmasq.boot_tftp_root|d("/srv/tftp")) }}'
+ipxe__tftp_root: '{{ ansible_local.tftpd.directory | d(ansible_local.dnsmasq.boot_tftp_root | d("/var/lib/tftpboot")) }}'
+
+                                                                   # ]]]
+# .. envvar:: ipxe__tftp_subdir [[[
+#
+# Subdirectory inside of the TFTP root directory where the role should place
+# its files. Make sure that the value starts with ``/`` to ensure correct path.
+ipxe__tftp_subdir: '/ipxe'
 
                                                                    # ]]]
 # .. envvar:: ipxe__bootloaders [[[
@@ -49,164 +55,7 @@ ipxe__tftp_root: '{{ ansible_local.tftpd.directory|d(ansible_local.dnsmasq.boot_
 ipxe__bootloaders:
   - '/usr/lib/syslinux/memdisk'
   - '/usr/lib/ipxe/undionly.kpxe'
-  - '/boot/ipxe.efi'
-                                                                   # ]]]
-                                                                   # ]]]
-# Debian Installer network boot [[[
-# ---------------------------------
-
-# .. envvar:: ipxe__debian_netboot_enabled [[[
-#
-# Enable or disable support for configuring a set of Debian Installer instances
-# which can be used to install Debian releases over the network.
-ipxe__debian_netboot_enabled: True
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_firmware [[[
-#
-# Enable or disable inclusion of the non-free firmware packages in the Debian
-# Installer images. The non-free firmware might be required to use certain
-# hardware (network cards, storage drivers, etc.).
-ipxe__debian_netboot_firmware: '{{ ansible_local.apt.nonfree|d()|bool }}'
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_src [[[
-#
-# The base directory where the Debian netboot and firmware tarballs will be
-# downloaded. The final directory depends on a given OS release and hardware
-# architecture.
-ipxe__debian_netboot_src: '{{ (ansible_local.fhs.src | d("/usr/local/src"))
-                              + "/ipxe/debian/netboot" }}'
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_pxe_root [[[
-#
-# The base directory where Debian Installer tarballs will be unpacked. The
-# final directory depends on a given OS release and hardware architecture.
-ipxe__debian_netboot_pxe_root: '{{ ipxe__tftp_root + "/pxe/linux/debian" }}'
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_mirror [[[
-#
-# The base URL from which the Debian netboot tarballs will be downloaded. This
-# should be a fully-fledged Debian mirror.
-ipxe__debian_netboot_mirror: 'https://deb.debian.org/debian'
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_firmware_mirror [[[
-#
-# The base URL from which the Debian firmware tarballs will be downloaded.
-ipxe__debian_netboot_firmware_mirror: 'https://cdimage.debian.org/cdimage/unofficial/non-free/firmware'
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_releases [[[
-#
-# Specify which Debian releases will be prepared for iPXE boot on a given host.
-# The releases need to be defined in the OS release map below.
-ipxe__debian_netboot_releases: [ 'jessie', 'stretch', 'buster', 'bullseye' ]
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_architectures [[[
-#
-# Specify which Debian architectures will be prepared for iPXE boot on a given
-# host. The architectures need to be defined in the OS release map below.
-ipxe__debian_netboot_architectures: [ 'amd64', 'i386', 'arm64' ]
-                                                                   # ]]]
-                                                                   # ]]]
-# Debian Installer release maps [[[
-# ---------------------------------
-
-# These lists define the Debian Installer releases that will be downloaded and
-# prepared for use via iPXE boot.
-# See :ref:`ipxe__ref_debian_netboot_release_map` for more details.
-
-# .. envvar:: ipxe__debian_netboot_default_release_map [[[
-#
-# The list of the default Debian Installer releases defined by the role.
-ipxe__debian_netboot_default_release_map:
-
-  - name: 'jessie-amd64'
-    release: 'jessie'
-    architecture: 'amd64'
-    netboot_version: '20150422+deb8u5'
-    netboot_checksum: 'sha256:f52fa82a53cc2a2912765396e2adfd715234c9e1137ac5112ebc10f50a69b525'  # netboot.tar.gz
-    firmware_version: '20190211'
-    firmware_checksum: 'sha256:085f8a68b196955c984515849314fdccf6d5ba5b6b8bbef157dcb50f2cb8c0cf'  # firmware.cpio.gz
-
-  - name: 'jessie-amd64-gtk'
-    release: 'jessie'
-    architecture: 'amd64'
-    netboot_subdir: '/gtk'
-    netboot_version: '20150422+deb8u5'
-    netboot_checksum: 'sha256:60214b3a902da49cb2f8379df1502057e6d13522526a98db489f5830c60f8014'  # netboot.tar.gz
-    firmware_version: '20190211'
-    firmware_checksum: 'sha256:085f8a68b196955c984515849314fdccf6d5ba5b6b8bbef157dcb50f2cb8c0cf'  # firmware.cpio.gz
-
-  - name: 'stretch-amd64'
-    release: 'stretch'
-    architecture: 'amd64'
-    netboot_version: '20170615+deb9u9'
-    netboot_checksum: 'sha256:f25408235e7a13fb05804512ad415ec78ce8e5d18f31cd2bdfe5b75c2c373047'  # netboot.tar.gz
-    firmware_version: '20200718'
-    firmware_checksum: 'sha256:77fd3c1f66b530c868ac2a1d2b27cd2fc2e4a592bff48726c8e2e475d1a7eb16'  # firmware.cpio.gz
-
-  - name: 'stretch-amd64-gtk'
-    release: 'stretch'
-    architecture: 'amd64'
-    netboot_subdir: '/gtk'
-    netboot_version: '20170615+deb9u9'
-    netboot_checksum: 'sha256:3ba002234396044fec57faecd60acd77968850f92c67ef209731231eaf3b38e4'  # gtk/netboot.tar.gz
-    firmware_version: '20200718'
-    firmware_checksum: 'sha256:77fd3c1f66b530c868ac2a1d2b27cd2fc2e4a592bff48726c8e2e475d1a7eb16'  # firmware.cpio.gz
-
-  - name: 'buster-amd64'
-    release: 'buster'
-    architecture: 'amd64'
-    netboot_version: '20190702+deb10u11'
-    netboot_checksum: 'sha256:a2f7315706077d9013a7625889d4c9b7694cfa7155debd2e40de6f66a474d287'  # netboot.tar.gz
-    firmware_version: '20211009'
-    firmware_checksum: 'sha256:a9743d56e877888a6984fd52e95192b0f97c908344bdee69c18e072325b8d4e4'  # firmware.cpio.gz
-
-  - name: 'buster-amd64-gtk'
-    release: 'buster'
-    architecture: 'amd64'
-    netboot_subdir: '/gtk'
-    netboot_version: '20190702+deb10u11'
-    netboot_checksum: 'sha256:8018487e5f93dca8d20f73a09fc9a9069da6e4268a511c2ec8dcaac909162c68'  # netboot.tar.gz
-    firmware_version: '20211009'
-    firmware_checksum: 'sha256:a9743d56e877888a6984fd52e95192b0f97c908344bdee69c18e072325b8d4e4'  # firmware.cpio.gz
-
-  - name: 'bullseye-amd64'
-    release: 'bullseye'
-    architecture: 'amd64'
-    netboot_version: '20210731+deb11u1'
-    netboot_checksum: 'sha256:dd7e30b1e90bb3347d3584e941aa86e180d5367fe0a3166d93603ef209db73db'  # netboot.tar.gz
-    firmware_version: '20211009'
-    firmware_checksum: 'sha256:17ad5dcda8889ddae116fc0669bf0b5897b448b17a002b728d1bd300328a1db6'  # firmware.cpio.gz
-
-  - name: 'bullseye-amd64-gtk'
-    release: 'bullseye'
-    architecture: 'amd64'
-    netboot_subdir: '/gtk'
-    netboot_version: '20210731+deb11u1'
-    netboot_checksum: 'sha256:9794bbbfba6b1968e8a99be2b36191b8aa7e03d67b662c99e8e1af162857c215'  # netboot.tar.gz
-    firmware_version: '20211009'
-    firmware_checksum: 'sha256:17ad5dcda8889ddae116fc0669bf0b5897b448b17a002b728d1bd300328a1db6'  # firmware.cpio.gz
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_release_map [[[
-#
-# The list of Debian Installer releases defined by the administrator. This
-# variable can be used to modify the default release list if necessary.
-ipxe__debian_netboot_release_map: []
-
-                                                                   # ]]]
-# .. envvar:: ipxe__debian_netboot_combined_release_map [[[
-#
-# The variable which combines the lists of the Debian Installer releases and is
-# used in the role tasks and templates.
-ipxe__debian_netboot_combined_release_map: '{{ ipxe__debian_netboot_default_release_map
-                                               + ipxe__debian_netboot_release_map }}'
+  - '/usr/lib/ipxe/ipxe-amd64.efi'
                                                                    # ]]]
                                                                    # ]]]
 # iPXE scripts [[[
@@ -226,7 +75,7 @@ ipxe__default_scripts:
 
       - name: 'main_menu_title'
         comment: 'The main menu title'
-        value: '{{ ansible_local.machine.organization|d("DebOps") + " Boot Menu" }}'
+        value: '{{ ansible_local.machine.organization | d("DebOps") + " Boot Menu" }}'
 
       - name: 'debian_installer_mirror'
         comment: 'Debian mirror used during automated installation'
@@ -247,6 +96,10 @@ ipxe__default_scripts:
       - name: 'ipxe_boot_path'
         comment: 'Subdirectory with boot configuration files'
         value: 'boot/'
+
+      - name: 'netboot_assistant_root'
+        comment: 'URL to the Netboot Assistant directory root'
+        value: 'tftp://${next-server}/d-i/n-a'
 
   - name: 'boot.ipxe'
     raw: |
@@ -330,9 +183,11 @@ ipxe__default_scripts:
 
       - name: 'main-menu-footer'
         raw: |
+          item --gap Other Boot Menus:
           item netboot_xyz_boot_menu ${space} -> Netboot.xyz Boot Menu
           item sal_boot_menu         ${space} -> SAL Boot Menu
           item rackspace_boot_menu   ${space} -> Rackspace Boot Menu
+          item netboot_assistant_boot_menu ${space} -> D-I Netboot Assistant Boot Menu
           item
           item --gap Tools:
           item sysinfo ${space} System info
@@ -368,6 +223,10 @@ ipxe__default_scripts:
           chain http://boot.rackspace.com/menu.ipxe || goto error
           goto main_menu
 
+          :netboot_assistant_boot_menu
+          chain ${netboot_assistant_root}/menu.ipxe || goto error
+          goto main_menu
+
           :netboot_xyz_boot_menu
           chain --autofree http://boot.netboot.xyz || goto error
           goto main_menu
@@ -382,7 +241,7 @@ ipxe__default_scripts:
           exit
 
           :error
-          echo Error occured, press any key to return to menu ...
+          echo Error occurred, press any key to return to menu ...
           prompt
           goto main_menu
 
@@ -432,15 +291,14 @@ ipxe__default_scripts:
 
       menu Install Debian GNU/Linux / ${arch_a}
       item --gap Select suite:
-      item --key e bullseye ${space} Debian Stable (Bullseye) [e]
-      # Enable this when Debian Bookworm gets an installer
-      #item bookworm ${space} Debian Testing (Bookworm)
+      item --key e trixie ${space} Debian Stable (Trixie) [e]
+      item forky ${space} Debian Testing (Forky)
       item
       item --gap Select release:
+      item forky ${space} Debian GNU/Linux 14 (Forky)
+      item trixie ${space} Debian GNU/Linux 13 (Trixie)
+      item bookworm ${space} Debian GNU/Linux 12 (Bookworm)
       item bullseye ${space} Debian GNU/Linux 11 (bullseye)
-      item buster ${space} Debian GNU/Linux 10 (buster)
-      item stretch ${space} Debian GNU/Linux 9 (stretch)
-      item jessie ${space} Debian GNU/Linux 8 (jessie)
       choose --default ${debian-installer-cursor} version || goto debian_exit
       set debian-installer-cursor ${version}
 
@@ -452,7 +310,6 @@ ipxe__default_scripts:
       set type text
 
       :deb_boot_type
-      set dir pxe/linux/debian/${version}/${arch_a}/current
 
       menu Install Debian GNU/Linux / ${arch_a} / ${version}
       item --gap Select installer mode:
@@ -542,11 +399,11 @@ ipxe__default_scripts:
       goto deb_boot_type
 
       :deb_text
-      set dir ${dir}/debian-installer/${arch_a}
+      set dir ${netboot_assistant_root}/${version}/${arch_a}
       goto deb_boot
 
       :deb_graphical
-      set dir ${dir}/gtk/debian-installer/${arch_a}
+      set dir ${netboot_assistant_root}/${version}-gtk/${arch_a}
       set install_params vga=788
       goto deb_boot
 

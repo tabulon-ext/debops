@@ -1,6 +1,6 @@
-.. Copyright (C) 2015-2019 Maciej Delmanowski <drybjed@gmail.com>
+.. Copyright (C) 2015-2026 Maciej Delmanowski <drybjed@gmail.com>
 .. Copyright (C) 2019      Tasos Alvas <tasos.alvas@qwertyuiopia.com>
-.. Copyright (C) 2015-2019 DebOps <https://debops.org/>
+.. Copyright (C) 2015-2026 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-or-later
 
 .. _debops_for_ansible:
@@ -32,7 +32,7 @@ then be modified as needed through Ansible inventory.
 Many roles support usage as "role dependencies" - other roles, either those in
 DebOps or written by its users, can request certain configuration to be defined
 on their behalf. This design principle allows for the DebOps roles to be
-focused on specific services or applications and encourages re-use of existing
+focused on specific services or applications and encourages reuse of existing
 roles when writing custom ones by users.
 
 For example, when you write a role that deploys a web application, you don't
@@ -85,20 +85,43 @@ override certain aspects of public Ansible roles without modifying them
 directly. This allows for easier updates or customization of the files and
 templates according to your specific needs.
 
-Certain roles use ``file_src`` or ``template_src`` to calculate path to files
-or templates used by a role. You can override these paths using ``.debops.cfg``
-configuration file and provide your own versions of files and templates stored
-in DebOps project directory.
+Certain roles use ``debops.debops.file_src`` or ``debops.debops.template_src``
+to calculate path to files or templates used by a role. You can override these
+paths using the global DebOps configuration at
+:file:`~/.config/debops/conf.d/` (works without the ``debops`` Python module)
+or the :file:`.debops.cfg` configuration file in the project directory
+(requires the ``debops`` Python module), and provide your own versions of
+files and templates stored in the project directory.
 
 Some roles provide "task hooks" at the beginning and end of task lists, which
-are empty files in a specific subdirectories. Using ``task_src`` lookup plugin
-and settings defined in ``.debops.cfg`` configuration file you can "inject"
-your own tasks at the beginning or end of these roles, which gives you more
-control over the configuration.
+are empty files in a specific subdirectories. Using ``debops.debops.task_src``
+lookup plugin and the same override configuration you can "inject" your own
+tasks at the beginning or end of these roles, which gives you more control
+over the configuration.
 
 By combining above techniques, you can very easily extend DebOps roles without
 losing the ability to update them, using :command:`git` without having merge
 conflicts.
+
+Alternatively, you can create a :file:`.debops.yml` (or
+:file:`.debops.json` / :file:`.debops.toml`) file in your project root
+directory. The lookup plugins will pick it up automatically without needing
+the ``debops`` Python module or any configuration directory setup. For
+example, to override files and templates for a project at
+:file:`/home/alice/myansible/`:
+
+.. code-block:: toml
+
+   [override_paths]
+   files_path = "/home/alice/myansible/resources/overrides/files"
+   templates_path = "/home/alice/myansible/resources/overrides/templates"
+   tasks_path = "/home/alice/myansible/resources/overrides/tasks"
+
+Relative paths are resolved against the directory where
+:command:`ansible-playbook` is executed. You can also use the global DebOps
+configuration path (:file:`~/.config/debops/conf.d/`) as an alternative —
+create a TOML, YAML, or JSON file with the same ``override_paths`` section
+in any of the configuration directories.
 
 
 Ansible inventory is a source of truth
@@ -150,6 +173,12 @@ inventory (for example, the ``debops.nginx`` role is activated on hosts in
 ``[debops_service_nginx]`` group). Some service playbooks use additional groups
 for various purposes; you are advised to check the role documentation to see
 what is their intended use case.
+
+:ref:`Scoped playbooks <scoped_playbooks>` use the ``[debops_all_services]``
+Ansible inventory group alongside the ``[debops_service_*]`` groups. This
+allows easy activation of any Ansible role using its corresponding
+:file:`scope/<role>[/<entry_point>/]` playbook on a given host. Keep in mind
+that roles used this way might not work correctly on an unconfigured host.
 
 
 LDAP integration

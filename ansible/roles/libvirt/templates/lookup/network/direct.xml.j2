@@ -3,9 +3,9 @@
  # Copyright (C) 2015-2016 DebOps <https://debops.org/>
  # SPDX-License-Identifier: GPL-3.0-only
  #}
-<network>
+<network trustGuestRxFilters="{{ "yes" if (item.trust | d(True)) else "no" }}">
   <name>{{ item.name }}</name>
-{% if item.uuid|d() %}
+{% if item.uuid | d() %}
   <uuid>{{ item.uuid }}</uuid>
 {% endif %}
   <forward mode="bridge">

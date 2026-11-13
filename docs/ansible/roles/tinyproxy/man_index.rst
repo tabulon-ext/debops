@@ -14,6 +14,7 @@ debops.tinyproxy
    man_synopsis
    man_description
    getting-started
+   defaults/main
    defaults-detailed
 
 ..
@@ -21,4 +22,3 @@ debops.tinyproxy
  mode: rst
  ispell-local-dictionary: "american"
  End:
-

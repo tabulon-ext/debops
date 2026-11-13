@@ -2,6 +2,7 @@
 .. Copyright (C) 2019      Imre Jonk <mail@imrejonk.nl>
 .. Copyright (C) 2019      Alin Alexandru <alin.alexandru@innobyte.com>
 .. Copyright (C) 2017-2020 DebOps <https://debops.org/>
+.. Copyright (C) 2024      seven beep <seven-beep@entreparentheses.xyz>
 .. SPDX-License-Identifier: GPL-3.0-or-later
 
 .. _install:
@@ -32,6 +33,12 @@ DebOps can be installed in different ways depending on your needs:
   :command:`ansible-galaxy` command. This is a good solution if you are
   interested only in specific DebOps roles and you don't want to use the
   additional scripts to manage your environments.
+
+Additionally, each "modern" DebOps project directory can contain its own,
+encapsulated Python virtual environment with Ansible and the Python
+dependencies required by the DebOps roles, independent of the system-wide
+installation. See the :ref:`project virtual environment
+<project_virtual_environment>` documentation for details.
 
 In any case, the installation will be performed on a Linux, macOS or Windows
 (WSL) computer which will be called the "Ansible Controller". This machine will
@@ -78,6 +85,14 @@ Ansible:
   plugin.
 
 .. __: http://www.dnspython.org/
+
+`gitpython`__
+  This is a Python library which provides an interface to the :command:`git`
+  command and git repositories. In DebOps, it is used to manage project
+  directories, and enables support for encrypting secrets using the
+  :command:`git-crypt` command.
+
+.. __: https://gitpython.readthedocs.io/en/stable/index.html
 
 `python-ldap`__
   This is a Python library which can be used to interface with the LDAP
@@ -137,7 +152,7 @@ packages by running the command:
 .. code-block:: console
 
    sudo apt install build-essential python3-dev libffi-dev libssl-dev \
-                    libsasl2-dev libldap2-dev python3-pip
+                    libsasl2-dev libldap2-dev pipx
 
 Installation of DebOps with Ansible included
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -146,13 +161,14 @@ To install DebOps and Ansible on your user account, execute the command:
 
 .. code-block:: console
 
-   pip3 install --user debops[ansible]
+   pipx install --include-deps debops[ansible]
 
 The above command will install the ``debops`` Python package, as well as
-``ansible`` Python package with optional dependencies used by DebOps roles.
-They will be installed in the :file:`~/.local/lib/python3.x/site-packages/`
-directory, the scripts and other binaries will be installed in
-:file:`~/.local/bin` directory which should be included in your ``$PATH``.
+``ansible`` Python package with optional dependencies used by DebOps roles in a
+``venv``.  They will be installed in the
+:file:`~/.local/pipx/venvs/debops/lib/python3.x/site-packages/` directory, the
+scripts and other binaries will be installed in :file:`~/.local/bin` directory
+which should be included in your ``$PATH``.
 
 .. note:: The ``debops`` Python package contains its own set of DebOps roles
           and playbooks, which can be accessed by the :command:`debops` script,
@@ -166,10 +182,20 @@ you can use the command:
 
 .. code-block:: console
 
-   pip3 install --user debops
+   pipx install debops
 
 In this case you will have to install Ansible and other optional dependencies
-required by DebOps separately.
+required by DebOps separately. An example with ``ansible-core`` package:
+
+.. code-block:: console
+
+   # Install system-wide required dependencies
+   sudo apt install build-essential python3-dev libffi-dev libssl-dev \
+                    libsasl2-dev libldap2-dev
+
+   # Install ansible-core in pipx venv and inject required Python modules
+   pipx install ansible-core
+   pipx inject ansible-core netaddr passlib python-ldap toml
 
 Ansible notes
 ~~~~~~~~~~~~~
@@ -222,7 +248,7 @@ Additional, useful software
   The FUSE-based ``EncFS`` filesystem can be used to manage an encrypted volume
   which holds the contents of the :file:`secret/` directory. This is an optional
   feature, useful if you want to protect your passwords, X.509 certificates and
-  other confidental data while not in use, for example in a :command:`git`
+  other confidential data while not in use, for example in a :command:`git`
   repository.
 
 .. __: https://en.wikipedia.org/wiki/EncFS
@@ -250,7 +276,7 @@ command:
 
 .. code-block:: console
 
-   pip3 install --user --upgrade debops
+   pipx upgrade debops
 
 
 Installation in a :command:`virtualenv` Python environment
@@ -331,6 +357,38 @@ To install the DebOps Collections, run the command:
 
    ansible-galaxy collection install debops.debops
 
+If the Ansible Galaxy service is not accessible, the Collection can be
+installed from the release archive attached to the GitHub releases, using
+the command:
+
+.. code-block:: console
+
+   ansible-galaxy collection install https://github.com/debops/debops/releases/download/v3.3.0/debops-debops-3.3.0.tar.gz
+
+This form can also be used in the :file:`requirements.yml` file, like this:
+
+.. code-block:: yaml
+
+   ---
+   collections:
+     - name: 'https://github.com/debops/debops/releases/download/v3.3.0/debops-debops-3.3.0.tar.gz'
+
+After saving the file, you can use the command:
+
+.. code-block:: console
+
+   ansible-galaxy install -r requirements.yml
+
+to install the collection.
+
+The release archives are signed with a detached GPG signature, attached
+next to the archive. Download the ``.asc`` signature file and check the
+archive with the :command:`gpg` command before installing it:
+
+.. code-block:: console
+
+   gpg --verify debops-debops-3.3.0.tar.gz.asc debops-debops-3.3.0.tar.gz
+
 The DebOps Collections will be available in the directory:
 
 .. code-block:: none
@@ -358,32 +416,3 @@ published on Ansible Galaxy, you can run the command:
 .. code-block:: console
 
    ansible-galaxy collection install --force-with-deps debops.debops
-
-
-Installation of the DebOps rolling release
-------------------------------------------
-
-The ``debops`` Python package includes a :command:`debops-update` script which
-can be used to install the DebOps monorepo directly from GitHub, with the
-``master`` branch checked out by default. If you run this script without any
-arguments, the repository will be installed in:
-
-.. code-block:: none
-
-   ~/.local/share/debops/debops/
-
-Running :command:`debops-update` command again will refresh the repository.
-
-If you specify a directory as an argument to the :command:`debops-update`
-command, the monorepo will be cloned into the :file:`debops/` subdirectory of
-that directory. This can be used to install the development version in
-a specific DebOps project directory, for testing new releases:
-
-.. code-block:: console
-
-   debops-init ~/src/projects/test-env
-   debops-update ~/src/projects/test-env
-
-The monorepo installed in the :file:`debops/` subdirectory of a given DebOps
-project directory will take precedence over the one installed globally in
-:file:`~/.local/share/debops/debops/` or included in the Python package.

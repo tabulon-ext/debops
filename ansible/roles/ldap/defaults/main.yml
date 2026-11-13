@@ -31,8 +31,8 @@
 # related to LDAP (for example if you want to interact only with the LDAP
 # directory itself).
 ldap__enabled: '{{ ansible_local.ldap.enabled
-                   if (ansible_local|d() and ansible_local.ldap|d() and
-                       (ansible_local.ldap.enabled|d())|bool)
+                   if (ansible_local | d() and ansible_local.ldap | d() and
+                       (ansible_local.ldap.enabled | d()) | bool)
                    else False }}'
 
                                                                    # ]]]
@@ -54,7 +54,7 @@ ldap__posix_enabled: '{{ ansible_local.ldap.posix_enabled | d(ldap__enabled) }}'
 # by default and those defined in the Ansible inventory to avoid creating long
 # lists of tasks. The state is tracked using a fact during runtime.
 ldap__configured: '{{ ansible_local.ldap.configured
-                      if (ansible_local|d() and ansible_local.ldap|d() and
+                      if (ansible_local | d() and ansible_local.ldap | d() and
                           ansible_local.ldap.configured is defined)
                       else False }}'
 
@@ -65,8 +65,8 @@ ldap__configured: '{{ ansible_local.ldap.configured
 # this variable is ``True``), the role will skip most of its normal tasks and
 # only run the LDAP tasks defined via the dependent variables.
 ldap__dependent_play: '{{ True
-                          if (ldap__configured|bool and
-                              ldap__dependent_tasks|d())
+                          if (ldap__configured | bool and
+                              ldap__dependent_tasks | d())
                           else False }}'
                                                                    # ]]]
                                                                    # ]]]
@@ -97,9 +97,10 @@ ldap__domain: '{{ ansible_domain }}'
                                                                    # ]]]
 # .. envvar:: ldap__servers_srv_rr [[[
 #
-# List which contains the result of the :command:`dig` query for LDAP server
-# ``SRV`` resource records in the host's domain.
-ldap__servers_srv_rr: '{{ q("dig", "_ldap._tcp." + ldap__domain + "./SRV", "flat=0") }}'
+# List which contains the result of the DNS query for LDAP server ``SRV``
+# resource records in the host's domain.
+ldap__servers_srv_rr: '{{ q("debops.debops.dig_srv", "_ldap._tcp." + ldap__domain,
+                            "ldap." + ldap__domain, 389) }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__servers [[[
@@ -111,11 +112,7 @@ ldap__servers_srv_rr: '{{ q("dig", "_ldap._tcp." + ldap__domain + "./SRV", "flat
 # The role tries to detect LDAP servers to use via published ``_ldap._tcp`` SRV
 # resource records, and if there aren't any, will fallback to the ``ldap.*``
 # Fully Qualified Domain Name.
-ldap__servers: '{{ (ldap__servers_srv_rr | selectattr("target", "defined")
-                    | map(attribute="target") | map("regex_replace", "\.$","") | list)
-                   if ("NXDOMAIN" not in ldap__servers_srv_rr and
-                       ldap__servers_srv_rr[0])
-                   else [ "ldap." + ldap__domain ] }}'
+ldap__servers: '{{ ldap__servers_srv_rr | map(attribute="target") }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__servers_protocol [[[
@@ -123,7 +120,7 @@ ldap__servers: '{{ (ldap__servers_srv_rr | selectattr("target", "defined")
 # The ``<protocol>://`` name to use in the configured LDAP URIs, based on the
 # presence of configured :ref:`debops.pki` environment. Role assumes that all
 # detected LDAP servers use the same connection configuration.
-ldap__servers_protocol: '{{ "ldap" if ldap__start_tls|bool else "ldaps" }}'
+ldap__servers_protocol: '{{ "ldap" if ldap__start_tls | bool else "ldaps" }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__servers_uri [[[
@@ -142,8 +139,8 @@ ldap__servers_uri: '{{ ldap__servers
 # plain ``ldap`` (389) TCP port. This requires configured X.509 PKI
 # environment, managed by the :ref:`debops.pki` role.
 ldap__start_tls: '{{ True
-                     if (ansible_local|d() and ansible_local.pki|d() and
-                         (ansible_local.pki.enabled|d())|bool)
+                     if (ansible_local | d() and ansible_local.pki | d() and
+                         (ansible_local.pki.enabled | d()) | bool)
                      else False }}'
                                                                    # ]]]
                                                                    # ]]]
@@ -292,9 +289,8 @@ ldap__device_aliases: [ '{{ ansible_hostname }}' ]
 # or other network interfaces not reachable directly from outside the
 # host will be skipped. The :rfc:`1918` addresses will also be added in the
 # attributes, if they are configured to be reachable from outside of the host.
-ldap__device_ip_addresses: '{{ q("template",
-                                 "lookup/ldap__device_ip_addresses.j2")
-                                 | from_yaml | flatten }}'
+ldap__device_ip_addresses: '{{ lookup("template", "lookup/ldap__device_ip_addresses.j2",
+                                      convert_data=False) | from_yaml }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__device_ip_iface_regex [[[
@@ -317,9 +313,8 @@ ldap__device_ip_iface_regex: '^(bond|en|eth|vlan|mv-|host)'
 # the device object. This could otherwise cause problems when the host employs
 # network bonding (where the MAC addresses of the physical interfaces can become
 # the same).
-ldap__device_mac_addresses: '{{ q("template",
-                                  "lookup/ldap__device_mac_addresses.j2")
-                                  | from_yaml | flatten | unique }}'
+ldap__device_mac_addresses: '{{ lookup("template", "lookup/ldap__device_mac_addresses.j2",
+                                       convert_data=False) | from_yaml }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__device_mac_iface_regex [[[
@@ -346,7 +341,7 @@ ldap__device_domain_rdn: 'dc={{ ldap__device_domain }}'
 # .. envvar:: ldap__device_branch_rdn [[[
 #
 # The Relative Distinguished Name of the main LDAP directory branch where the
-# remote hosts managed by DebOps will be added, along with the spearate
+# remote hosts managed by DebOps will be added, along with the separate
 # ``domain`` LDAP objects.
 ldap__device_branch_rdn: '{{ ldap__hosts_rdn }}'
 
@@ -358,11 +353,11 @@ ldap__device_branch_rdn: '{{ ldap__hosts_rdn }}'
 # will be available using the ``ansible_local.ldap.device_dn`` Ansible local
 # fact, from where other Ansible roles can use it to construct Distinguished
 # Names relative to the hosts' own LDAP object.
-ldap__device_dn: '{{ q("flattened", [ ldap__device_self_rdn ]
-                                    + ([ ldap__device_domain_rdn ]
-                                       if ldap__device_separate_domains|bool
+ldap__device_dn: '{{ q("flattened", [ldap__device_self_rdn]
+                                    + ([ldap__device_domain_rdn]
+                                       if ldap__device_separate_domains | bool
                                        else [])
-                                    + [ ldap__device_branch_rdn ]
+                                    + [ldap__device_branch_rdn]
                                     + ldap__base_dn) }}'
 
                                                                    # ]]]
@@ -395,11 +390,11 @@ ldap__device_domain_attributes:
 #
 # List of LDAP ``objectClass`` names which will be used to create the LDAP
 # device object.
-ldap__device_object_classes: '{{ [ "device", "ieee802Device", "ipHost" ]
+ldap__device_object_classes: '{{ ["device", "ieee802Device", "ipHost"]
                                  + ([]
                                     if (ansible_virtualization_role == "guest" and
-                                        ansible_virtualization_type in [ "lxc", "docker", "openvz" ])
-                                    else [ "bootableDevice" ]) }}'
+                                        ansible_virtualization_type in ["lxc", "docker", "openvz"])
+                                    else ["bootableDevice"]) }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__device_attributes [[[
@@ -411,7 +406,7 @@ ldap__device_object_classes: '{{ [ "device", "ieee802Device", "ipHost" ]
 # These attributes will be used to update the existing LDAP device object as
 # well on any changes.
 ldap__device_attributes:
-  cn: '{{ ([ ldap__device_self_rdn.split("=")[1] ] + ldap__device_aliases) | unique }}'
+  cn: '{{ ([ldap__device_self_rdn.split("=")[1]] + ldap__device_aliases) | unique }}'
   ipHostNumber: '{{ ldap__device_ip_addresses }}'
   macAddress:   '{{ ldap__device_mac_addresses }}'
   manager:      '{{ ldap__device_managers }}'
@@ -450,14 +445,14 @@ ldap__groupid_min: '{{ ldap__uid_gid_min }}'
 # matching User Private Groups. Default: 2001999999
 #
 # Ref: https://wiki.debian.org/UserPrivateGroups
-ldap__groupid_max: '{{ ldap__uid_gid_min|int + 1999999 }}'
+ldap__groupid_max: '{{ ldap__uid_gid_min | int + 1999999 }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__uid_gid_max [[[
 #
 # Last UID/GID which is considered to be managed by the LDAP directory and not
 # by the local NSS database. Default: 2099999999
-ldap__uid_gid_max: '{{ ldap__uid_gid_min|int + 99999999 }}'
+ldap__uid_gid_max: '{{ ldap__uid_gid_min | int + 99999999 }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__home [[[
@@ -491,7 +486,7 @@ ldap__shell: '/bin/bash'
 ldap__default_urn_patterns:
 
   - '{{ ("deploy:" + ansible_local.machine.deployment)
-        if (ansible_local.machine.deployment|d())
+        if (ansible_local.machine.deployment | d())
         else [] }}'
 
                                                                    # ]]]
@@ -607,7 +602,7 @@ ldap__combined_configuration: '{{ ldap__default_configuration
 # Enable or disable support for performing LDAP tasks on behalf of the LDAP
 # Administrator. This feature will be enabled if the password is available to
 # allow binding to the LDAP directory.
-ldap__admin_enabled: '{{ True if ldap__fact_admin_bindpw|d() else False }}'
+ldap__admin_enabled: '{{ True if ldap__fact_admin_bindpw | d() else False }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__admin_passwordstore_path [[[
@@ -615,7 +610,7 @@ ldap__admin_enabled: '{{ True if ldap__fact_admin_bindpw|d() else False }}'
 # The relative path in the :command:`pass` password database, where personal
 # LDAP credentials can be found by the role. See :ref:`ldap__ref_admin_pass`
 # for more details. This variable can be used in Ansible playbooks that use the
-# :ref:`debops.ldap` to create and update admin credentials.
+# :ref:`debops.ldap` role to create and update admin credentials.
 ldap__admin_passwordstore_path: 'debops/ldap/credentials'
 
                                                                    # ]]]
@@ -633,7 +628,7 @@ ldap__admin_rdn: '{{ "uid=" + lookup("env", "USER") }}'
 #
 # The Distinguished Name of the system administrator account, defined as a YAML
 # list.
-ldap__admin_dn: '{{ [ ldap__admin_rdn, ldap__people_rdn ] + ldap__base_dn }}'
+ldap__admin_dn: '{{ [ldap__admin_rdn, ldap__people_rdn] + ldap__base_dn }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__admin_binddn [[[
@@ -642,8 +637,7 @@ ldap__admin_dn: '{{ [ ldap__admin_rdn, ldap__people_rdn ] + ldap__base_dn }}'
 # administrative tasks. It can be overridden on the Ansible Controller through
 # use of the environment variables.
 ldap__admin_binddn: '{{ lookup("env", "DEBOPS_LDAP_ADMIN_BINDDN")
-                        if lookup("env", "DEBOPS_LDAP_ADMIN_BINDDN")|d()
-                        else (ldap__admin_dn | join(",")) }}'
+                        | d(ldap__admin_dn | join(","), True) }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__admin_bindpw [[[
@@ -651,12 +645,22 @@ ldap__admin_binddn: '{{ lookup("env", "DEBOPS_LDAP_ADMIN_BINDDN")
 # The LDAP BindPW value which will be used to bind to the LDAP directory for
 # administrative tasks. It can be overridden on the Ansible Controller through
 # use of the environment variables. See :ref:`ldap__ref_admin_pass` for more
-# details about :command:`pass` password database integration.
-ldap__admin_bindpw: '{{ lookup("env", "DEBOPS_LDAP_ADMIN_BINDPW")
-                        if lookup("env", "DEBOPS_LDAP_ADMIN_BINDPW")|d()
-                        else (lookup("passwordstore", ldap__admin_passwordstore_path
-                                     + "/" + (ldap__admin_binddn | to_uuid)
-                                     + " create=false", errors="ignore")) }}'
+# details.
+ldap__admin_bindpw: '{{ (lookup("env", "DEBOPS_LDAP_ADMIN_BINDPW")
+                         if lookup("env", "DEBOPS_LDAP_ADMIN_BINDPW") | d()
+                         else (lookup("file", secret + "/ldap/credentials/"
+                                              + ldap__admin_binddn | to_uuid
+                                              + ".password")
+                               if lookup("first_found",
+                                         [secret + "/ldap/credentials/"
+                                          + ldap__admin_binddn | to_uuid
+                                          + ".password"],
+                                         skip=True, errors="ignore")
+                               else lookup("passwordstore",
+                                           ldap__admin_passwordstore_path + "/"
+                                           + ldap__admin_binddn | to_uuid
+                                           + " create=false", errors="ignore")))
+                        if ldap__enabled | bool else "" }}'
 
                                                                    # ]]]
 # .. envvar:: ldap__admin_server_uri [[[
@@ -672,6 +676,12 @@ ldap__admin_server_uri: '{{ ldap__servers_uri | first }}'
 # access to credentials stored locally by the current Ansible user. This
 # variable allows to delegate to another host than the Ansible Controller to
 # perform the LDAP tasks there.
+#
+# .. warning:: Although you can delegate to a host which is not in the
+#              inventory (e.g. by using an IP address or hostname), this might
+#              cause hard to debug issues as the delegated-to host will not
+#              inherit variables such as the connection user
+#              (``ansible_user``).
 ldap__admin_delegate_to: 'localhost'
 
                                                                    # ]]]
@@ -704,20 +714,20 @@ ldap__admin_become_user: 'root'
 ldap__default_tasks:
 
   - name: 'Ensure that {{ ldap__hosts_rdn }} object exists in LDAP directory'
-    dn: '{{ [ ldap__hosts_rdn ] + ldap__base_dn }}'
+    dn: '{{ [ldap__hosts_rdn] + ldap__base_dn }}'
     objectClass: [ 'organizationalStructure' ]
     attributes:
       ou: '{{ ldap__hosts_rdn.split("=")[1] }}'
       description: 'Servers and other data center equipment'
 
   - name: 'Create domain object for {{ ldap__device_dn | join(",") }}'
-    dn: '{{ [ ldap__device_domain_rdn, ldap__device_branch_rdn ]
+    dn: '{{ [ldap__device_domain_rdn, ldap__device_branch_rdn]
             + ldap__base_dn }}'
     objectClass: '{{ ldap__device_domain_object_classes }}'
     attributes: '{{ ldap__device_domain_attributes }}'
     state: '{{ "present"
-               if (ldap__device_enabled|bool and
-                   ldap__device_separate_domains|bool)
+               if (ldap__device_enabled | bool and
+                   ldap__device_separate_domains | bool)
                else "ignore" }}'
 
   - name: 'Create device object for {{ ldap__device_dn | join(",") }}'
@@ -725,17 +735,17 @@ ldap__default_tasks:
     objectClass: '{{ ldap__device_object_classes }}'
     attributes: '{{ ldap__device_attributes }}'
     state: '{{ "present"
-               if (ldap__device_enabled|bool)
+               if (ldap__device_enabled | bool)
                else "ignore" }}'
 
   - name: 'Update device object for {{ ldap__device_dn | join(",") }}'
     dn: '{{ ldap__device_dn }}'
     attributes: '{{ ldap__device_attributes }}'
     state: '{{ "present"
-               if (ldap__fact_configured|bool and
-                   ldap__device_enabled|bool)
+               if (ldap__fact_configured | bool and
+                   ldap__device_enabled | bool)
                else ("exact"
-                     if (ldap__device_enabled|bool)
+                     if (ldap__device_enabled | bool)
                      else "ignore") }}'
 
                                                                    # ]]]
@@ -774,8 +784,8 @@ ldap__dependent_tasks: []
 # tasks defined in Ansible inventory when run standalone, and will skip them if
 # it detects the usage as a dependency by another role.
 ldap__combined_tasks: '{{ ldap__dependent_tasks
-                          if (ldap__fact_configured|bool and
-                              ldap__dependent_tasks|d())
+                          if (ldap__fact_configured | bool and
+                              ldap__dependent_tasks | d())
                           else (ldap__default_tasks
                                 + ldap__tasks
                                 + ldap__group_tasks
@@ -793,10 +803,9 @@ ldap__python__dependent_packages3:
 
   - '{{ ([]
          if (ansible_distribution_release in
-             ([ "wheezy", "jessie", "stretch",
-                "precise", "trusty", "xenial" ]))
+             (["stretch", "trusty", "xenial"]))
          else "python3-ldap")
-        if ldap__enabled|bool
+        if ldap__enabled | bool
         else [] }}'
 
                                                                    # ]]]
@@ -805,6 +814,6 @@ ldap__python__dependent_packages3:
 # Configuration for the :ref:`debops.python` Ansible role.
 ldap__python__dependent_packages2:
 
-  - '{{ "python-ldap" if ldap__enabled|bool else [] }}'
+  - '{{ "python-ldap" if ldap__enabled | bool else [] }}'
                                                                    # ]]]
                                                                    # ]]]

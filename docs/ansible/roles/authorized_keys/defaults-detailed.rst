@@ -68,7 +68,7 @@ different hosts:
 
 .. code-block:: yaml
 
-   # ansible/inventory/group_vars/all/authorized_keys.yml
+   # ansible/inventory/group_vars/debops_all_hosts/authorized_keys.yml
    authorized_keys__identities:
 
      - name: 'manager'
@@ -316,6 +316,10 @@ Each list entry is a YAML dictionary with specific parameters:
     in the ``item.sshkeys`` or ``item.url`` parameters. Keep in mind that using
     this option can break idempotency if multiple entries with the same
     ``name`` parameter are used.
+
+  ``follow``
+    Optional, boolean. If defined and ``True``, the role will follow symlinks to
+    the :file:`authorized_keys` file instead of replacing them.
 
   ``home``
     Optional, boolean. If not specified or ``False``, the SSH keys will be

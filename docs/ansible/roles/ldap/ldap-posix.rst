@@ -206,7 +206,7 @@ The selected LDAP UID/GID range (``2000000000-2099999999``) allows for 100 000
 (``2000000000-2001999999``) supports 2 000 000 unique groups. Users can
 increase or decrease the group range inside of the maximum UID/GID range, but
 going beyond that comes with a risk of exceeding the maximum UID/GID supported
-by the operating system and Unforseen Consequences. The UID/GID ranges can be
+by the operating system and Unforeseen Consequences. The UID/GID ranges can be
 divided further between different purposes, but that's beyond the scope of this
 role.
 
@@ -239,7 +239,7 @@ entities in a distributed environment are trying to create a new account at the
 same time.
 
 A solution to this is to track the next available ``uidNumber`` and
-``gidNumber`` values inside of the directory itself, using :ref:`special objcts
+``gidNumber`` values inside of the directory itself, using :ref:`special objects
 defined by a separate schema <slapd__ref_nextuidgid_schema>` and use an atomic
 LDAP delete+add operation to ensure that the next available UID or GID is
 reserved for our purposes. This solution was inspired by the `UIDNumber

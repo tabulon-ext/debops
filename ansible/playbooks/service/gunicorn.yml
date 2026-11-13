@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage Green Unicorn service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_gunicorn' ]
   become: True
 
@@ -15,10 +14,10 @@
 
   roles:
 
-    - role: apt_preferences
-      tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
-      apt_preferences__dependent_list:
-        - '{{ gunicorn__apt_preferences__dependent_list }}'
+    - role: 'global_handlers'
+
+    - role: cron
+      tags: [ 'role::cron', 'skip::cron' ]
 
     - role: logrotate
       tags: [ 'role::logrotate', 'skip::logrotate' ]

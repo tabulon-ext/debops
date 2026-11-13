@@ -6,7 +6,7 @@
 # This playbook can be used to bootstrap freshly installed minimal Debian
 # system for Ansible management. The expected state the host:
 #   - host is already configured in Ansible inventory/hosts file;
-#   - local user has prepared SSH keypair in RSA format;
+#   - local user has prepared SSH key pair in RSA format;
 #   - host has OpenSSH server installed;
 #
 # Modifications that will be made on the host:
@@ -33,24 +33,23 @@
 
 
 - name: Bootstrap Python support on a host
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_all_hosts', 'debops_service_bootstrap' ]
+  strategy: linear
   gather_facts: False
   become: True
 
   tasks:
 
     - name: Initialize Ansible support via raw tasks
-      import_role:
+      ansible.builtin.import_role:
         name: 'python'
         tasks_from: 'main_raw'
       tags: [ 'role::python_raw', 'skip::python_raw', 'role::python' ]
 
 
 - name: Bootstrap APT configuration on a host
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_all_hosts', 'debops_service_bootstrap' ]
   become: True
 
@@ -59,6 +58,8 @@
                    | combine(inventory__host_environment  | d({})) }}'
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: apt_proxy
       tags: [ 'role::apt_proxy', 'skip::apt_proxy' ]
@@ -67,12 +68,12 @@
       tags: [ 'role::apt', 'skip::apt' ]
 
 
-- import_playbook: 'service/core.yml'
+- name: Apply core configuration
+  import_playbook: 'service/core.yml'
 
 
 - name: Bootstrap host for Ansible management
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_all_hosts', 'debops_service_bootstrap' ]
   become: True
 
@@ -82,8 +83,10 @@
 
   roles:
 
-    - role: resolvconf
-      tags: [ 'role::resolvconf', 'skip::resolvconf' ]
+    - role: 'global_handlers'
+
+    - role: resolved
+      tags: [ 'role::resolved', 'skip::resolved' ]
 
     - role: python
       tags: [ 'role::python', 'skip::python', 'role::netbase' ]

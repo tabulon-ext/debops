@@ -5,8 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage Public Key Infrastructure
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_all_hosts', 'debops_service_pki' ]
   become: True
 
@@ -17,12 +16,14 @@
   pre_tasks:
 
     - name: Prepare pki environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'pki'
         tasks_from: 'main_env'
       tags: [ 'role::pki', 'role::pki:secret', 'role::secret' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: secret
       tags: [ 'role::secret', 'role::pki', 'role::pki:secret' ]

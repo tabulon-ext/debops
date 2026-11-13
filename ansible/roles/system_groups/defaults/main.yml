@@ -29,8 +29,7 @@ system_groups__enabled: True
 #
 # Enable or disable support for :file:`/etc/sudoers.d/` configuration.
 system_groups__sudo_enabled: '{{ True
-                                 if (ansible_local|d() and ansible_local.sudo|d() and
-                                     (ansible_local.sudo.installed|d()|bool))
+                                 if (ansible_local.sudo.installed | d() | bool)
                                  else False }}'
 
                                                                    # ]]]
@@ -61,20 +60,29 @@ system_groups__admins_sudo_nopasswd: '{{ False
 # Add a prefix to the custom UNIX system group names created by DebOps.
 # By default, no prefix is added.
 #
-# If the role detects that the LDAP support has been enabled on a host by the
-# :ref:`debops.ldap` Ansible role, custom UNIX group names created locally on
-# the host will have the ``_`` prefix to indicate that they are local to
-# a given host and not create conflicts with any UNIX groups defined in LDAP.
+# If the role detects that the LDAP support has been, or will be, enabled on a
+# host by the :ref:`debops.ldap` Ansible role, custom UNIX group names created
+# locally on the host will have the ``_`` prefix to indicate that they are
+# local to a given host and not create conflicts with any UNIX groups defined
+# in LDAP.
 #
 # If the LDAP support was enabled after the system groups have been created,
 # the role will keep the current prefix value to not duplicate the UNIX groups.
 system_groups__prefix: '{{ ansible_local.system_groups.local_prefix
-                           if (ansible_local|d() and ansible_local.system_groups|d() and
+                           if (ansible_local | d() and ansible_local.system_groups | d() and
                                ansible_local.system_groups.local_prefix is defined)
                            else ("_"
-                                 if (ansible_local|d() and ansible_local.ldap|d() and
-                                     (ansible_local.ldap.posix_enabled|d())|bool)
+                                 if ("debops_service_ldap" in group_names or
+                                     (ansible_local.ldap.posix_enabled | d() | bool))
                                  else "") }}'
+
+                                                                   # ]]]
+# .. envvar:: system_groups__throttle [[[
+#
+# Number of the CPU cores available on the ansible controller. This variable is
+# used to throttle the number of parallel tasks on one specific CPU intensive
+# task and helps to reduces memory consumption on big environments (> 100).
+system_groups__throttle: '8'
                                                                    # ]]]
                                                                    # ]]]
 # UNIX system groups [[[
@@ -99,8 +107,11 @@ system_groups__default_list:
   - name: '{{ system_groups__prefix }}admins'
     sudoers_filename: 'system_groups-admins'
     sudoers: |
+      {% if not (ansible_distribution == "Ubuntu"
+                 and ansible_facts.distribution_major_version is version_compare('26', '>=')) %}
       # This might be required to allow Ansible pipelining connections
       Defaults: %{{ system_groups__prefix }}admins !requiretty
+      {% endif %}
 
       # This variable is used to configure access by Ansible Controller hosts
       Defaults: %{{ system_groups__prefix }}admins env_check += "SSH_CLIENT"
@@ -108,9 +119,9 @@ system_groups__default_list:
       # Allow execution of any command as any user on the system.
       # This is required for Ansible operation.
       {{ ('%' + system_groups__prefix + 'admins ALL = (ALL:ALL) '
-          + ('NOPASSWD: ' if system_groups__admins_sudo_nopasswd|bool else '')
+          + ('NOPASSWD: ' if system_groups__admins_sudo_nopasswd | bool else '')
           + 'ALL') }}
-    members: '{{ ansible_local.core.admin_users|d([]) }}'
+    members: '{{ ansible_local.core.admin_users | d([]) }}'
     access: [ 'root', 'sshd' ]
 
 
@@ -134,9 +145,9 @@ system_groups__default_list:
       # Allow execution of any command as any user on the system.
       # This is required for Ansible operation.
       {{ ('%' + system_groups__prefix + 'wheel ALL = (ALL:ALL) '
-          + ('NOPASSWD: ' if system_groups__admins_sudo_nopasswd|bool else '')
+          + ('NOPASSWD: ' if system_groups__admins_sudo_nopasswd | bool else '')
           + 'ALL') }}
-    members: '{{ ansible_local.core.admin_users|d([]) }}'
+    members: '{{ ansible_local.core.admin_users | d([]) }}'
     access: [ 'root', 'sshd' ]
     state: 'init'
 
@@ -147,7 +158,7 @@ system_groups__default_list:
   # the '/var/log/' directory as well as firewall configuration in the
   # '/etc/ferm/' directory.
   - name: 'adm'
-    members: '{{ ansible_local.core.admin_users|d([]) }}'
+    members: '{{ ansible_local.core.admin_users | d([]) }}'
 
 
   # This group is present on Debian installations by default.
@@ -155,7 +166,7 @@ system_groups__default_list:
   # Users in the 'staff' UNIX group have write access to the '/usr/local/' and
   # '/var/local/' directories and can manage content inside of them.
   - name: 'staff'
-    members: '{{ ansible_local.core.admin_users|d([]) }}'
+    members: '{{ ansible_local.core.admin_users | d([]) }}'
 
 
   # Users in the 'sshusers' UNIX group are allowed to connect to the host via

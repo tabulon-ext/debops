@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage SMS Gateway service
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
+  collections: [ 'debops.debops' ]
   hosts: [ 'debops_service_smstools' ]
   become: True
 
@@ -16,7 +15,7 @@
   pre_tasks:
 
     - name: Prepare postfix environment
-      import_role:
+      ansible.builtin.import_role:
         name: 'postfix'
         tasks_from: 'main_env'
       vars:
@@ -29,6 +28,8 @@
       tags: [ 'role::postfix', 'role::secret', 'role::ferm' ]
 
   roles:
+
+    - role: 'global_handlers'
 
     - role: secret
       tags: [ 'role::secret', 'role::postfix' ]

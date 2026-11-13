@@ -65,11 +65,11 @@ support, based on Debian Stretch:
 
 .. code-block:: console
 
-   git clone -b stable-1.1 https://github.com/debops/debops ; cd debops
+   git clone -b stable-3.2 https://github.com/debops/debops ; cd debops
    vagrant up && vagrant ssh
 
 The configuration relies heavily on your Vagrant environment. Having a real
-domain is benefical. The box can be used to manage other Debian hosts as well.
+domain is beneficial. The box can be used to manage other Debian hosts as well.
 
 Vagrant will include contents of the cloned DebOps repository in the
 :file:`/vagrant/` directory on the created VM. This can be useful for project
@@ -91,7 +91,7 @@ commands:
 .. code-block:: console
 
    cd ~/src/controller
-   debops
+   debops run site
 
 Docker notes
 ~~~~~~~~~~~~

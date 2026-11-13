@@ -3,7 +3,7 @@
 
 # .. Copyright (C) 2015-2019 Maciej Delmanowski <drybjed@gmail.com>
 # .. Copyright (C) 2016      Patrick Heeney <patrickheeney@gmail.com>
-# .. Copyright (C) 2015-2019 DebOps <https://debops.org/>
+# .. Copyright (C) 2015-2022 DebOps <https://debops.org/>
 # .. SPDX-License-Identifier: GPL-3.0-only
 
 # .. _nodejs__ref_defaults:
@@ -24,7 +24,7 @@
 #
 # Specify the OS distribution release to use for the upstream APT repositories
 # and other configuration.
-nodejs__distribution_release: '{{ ansible_local.core.distribution_release|d(ansible_distribution_release) }}'
+nodejs__distribution_release: '{{ ansible_local.core.distribution_release | d(ansible_distribution_release) }}'
                                                                    # ]]]
                                                                    # ]]]
 # Node upstream configuration [[[
@@ -36,38 +36,34 @@ nodejs__distribution_release: '{{ ansible_local.core.distribution_release|d(ansi
 # distribution versions the upstream package will be installed due to no
 # security support.
 nodejs__node_upstream: '{{ ansible_local.nodejs.node_upstream
-                           |d(nodejs__distribution_release in [ "jessie", "xenial" ]) | bool }}'
+                            | d(nodejs__distribution_release in ["xenial"]) | bool }}'
 
                                                                    # ]]]
 # .. envvar:: nodejs__node_upstream_release [[[
 #
 # Specify the Node.js release to install from the NodeSource APT repository.
 # See https://github.com/nodejs/Release for the current release and maintenance
-# shedule. Available releases:
+# schedule. Available releases:
 #
-# - ``node_8.x``
-#
-# - ``node_10.x``
-#
-# - ``node_12.x``
+# - ``node_22.x``
 #
 nodejs__node_upstream_release: '{{ "node_8.x"
                                    if (nodejs__distribution_release in
-                                       [ "wheezy", "jessie", "stretch",
-                                         "trusty", "xenial", "bionic" ])
-                                   else "node_10.x" }}'
+                                       ["stretch", "trusty",
+                                        "xenial", "bionic"])
+                                   else "node_22.x" }}'
 
                                                                    # ]]]
 # .. envvar:: nodejs__node_upstream_key_id [[[
 #
 # GPG fingerprint of APT repository signing key.
-nodejs__node_upstream_key_id: '9FD3B784BC1C6FC31A8A0A1C1655A0AB68576280'
+nodejs__node_upstream_key_id: '6F71F525282841EEDAF851B42F59B5F99B1BE0B4'
 
                                                                    # ]]]
 # .. envvar:: nodejs__node_upstream_repository [[[
 #
 # URL of the NodeSource APT repository in ``sources.list`` format.
-nodejs__node_upstream_repository: 'deb https://deb.nodesource.com/{{ nodejs__node_upstream_release }} {{ nodejs__distribution_release }} main'
+nodejs__node_upstream_repository: 'deb [signed-by=/etc/apt/keyrings/nodesource.asc] https://deb.nodesource.com/{{ nodejs__node_upstream_release }} nodistro main'
                                                                    # ]]]
                                                                    # ]]]
 # Yarn upstream configuration [[[
@@ -81,23 +77,22 @@ nodejs__node_upstream_repository: 'deb https://deb.nodesource.com/{{ nodejs__nod
 # from NodeSource is installed, therefore in that case installation from
 # upstream will be enabled automatically. Ref: https://bugs.debian.org/933229
 nodejs__yarn_upstream: '{{ True
-                           if nodejs__node_upstream|bool
+                           if nodejs__node_upstream | bool
                            else (ansible_local.nodejs.yarn_upstream
-                                 |d(nodejs__distribution_release in
-                                    [ "jessie", "stretch", "xenial", "bionic" ])
-                           ) }}'
+                                  | d(nodejs__distribution_release in
+                                    ["stretch", "xenial", "bionic"])) }}'
 
                                                                    # ]]]
 # .. envvar:: nodejs__yarn_upstream_key_id [[[
 #
 # GPG fingerprint of Yarn APT repository signing key.
-nodejs__yarn_upstream_key_id: '72ECF46A56B4AD39C907BBB71646B01B86E50310'
+nodejs__yarn_upstream_key_id: 'FF7CB5667B542092084BBDC562D54FD4003F6525'
 
                                                                    # ]]]
 # .. envvar:: nodejs__yarn_upstream_repository [[[
 #
 # URL of the NodeSource APT repository in ``sources.list`` format.
-nodejs__yarn_upstream_repository: 'deb https://dl.yarnpkg.com/debian/ stable main'
+nodejs__yarn_upstream_repository: 'deb [signed-by=/etc/apt/keyrings/yarn.asc] https://dl.yarnpkg.com/debian/ stable main'
                                                                    # ]]]
                                                                    # ]]]
 # APT packages [[[
@@ -113,7 +108,7 @@ nodejs__remove_packages:
   - 'cmdtest'
 
   # Remove the OS release package if Yarn from upstream should be installed
-  - '{{ "yarnpkg" if nodejs__yarn_upstream|bool else [] }}'
+  - '{{ "yarnpkg" if nodejs__yarn_upstream | bool else [] }}'
 
                                                                    # ]]]
 # .. envvar:: nodejs__base_packages [[[
@@ -121,13 +116,13 @@ nodejs__remove_packages:
 # List of base APT packages to install.
 nodejs__base_packages:
   - 'nodejs'
-  - '{{ [] if nodejs__node_upstream|bool else "npm" }}'
+  - '{{ [] if nodejs__node_upstream | bool else "npm" }}'
   - '{{ "yarn"
-        if nodejs__yarn_upstream|bool
+        if nodejs__yarn_upstream | bool
         else ([]
               if (nodejs__distribution_release in
-                  [ "wheezy", "jessie", "stretch",
-                    "trusty", "xenial", "bionic" ])
+                  ["stretch", "trusty",
+                   "xenial", "bionic"])
               else "yarnpkg") }}'
 
                                                                    # ]]]
@@ -213,11 +208,11 @@ nodejs__npm_production_mode: True
 nodejs__apt_preferences__dependent_list:
 
   - packages: [ 'nodejs', 'nodejs-*', 'node-*', 'libssl1.0.0', 'libssl-dev', 'npm', 'libuv1', 'libuv1-dev' ]
-    backports: [ 'jessie', 'stretch' ]
+    backports: [ 'stretch' ]
     reason: 'Unsupported NodeJS version, parity with next Debian release'
     by_role: 'debops_nodejs'
     filename: 'debops_nodejs.pref'
-    state: '{{ "absent" if nodejs__node_upstream|bool else "present" }}'
+    state: '{{ "absent" if nodejs__node_upstream | bool else "present" }}'
 
   - package: '*'
     pin: 'origin "deb.nodesource.com"'
@@ -225,7 +220,7 @@ nodejs__apt_preferences__dependent_list:
     reason: "Don't upgrade software automatically using packages from external repository"
     role: 'debops.nodejs'
     suffix: '_deb_nodesource_com'
-    state: '{{ "present" if nodejs__node_upstream|bool else "absent" }}'
+    state: '{{ "present" if nodejs__node_upstream | bool else "absent" }}'
 
   - packages: [ 'nodejs', 'nodejs-*' ]
     pin: 'origin "deb.nodesource.com"'
@@ -233,7 +228,7 @@ nodejs__apt_preferences__dependent_list:
     reason: 'Prefer nodejs packages from the same repository for consistency'
     role: 'debops.nodejs'
     suffix: '_deb_nodesource_com'
-    state: '{{ "present" if nodejs__node_upstream|bool else "absent" }}'
+    state: '{{ "present" if nodejs__node_upstream | bool else "absent" }}'
 
                                                                    # ]]]
 # .. envvar:: nodejs__keyring__dependent_apt_keys [[[
@@ -242,11 +237,14 @@ nodejs__apt_preferences__dependent_list:
 nodejs__keyring__dependent_apt_keys:
 
   - id: '{{ nodejs__node_upstream_key_id }}'
+    url: 'https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key'
+    keyring: 'nodesource.asc'
     repo: '{{ nodejs__node_upstream_repository }}'
-    state: '{{ "present" if nodejs__node_upstream|bool else "absent" }}'
+    state: '{{ "present" if nodejs__node_upstream | bool else "absent" }}'
 
   - id: '{{ nodejs__yarn_upstream_key_id }}'
+    keyring: 'yarn.asc'
     repo: '{{ nodejs__yarn_upstream_repository }}'
-    state: '{{ "present" if nodejs__yarn_upstream|bool else "absent" }}'
+    state: '{{ "present" if nodejs__yarn_upstream | bool else "absent" }}'
                                                                    # ]]]
                                                                    # ]]]

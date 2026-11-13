@@ -64,7 +64,7 @@ Ansible Controller and remote hosts. Due to how task delegation in Ansible is
 designed, some of the variables that are important for the operation of the
 Ansible Controller are "sourced" on remote hosts. Therefore it's a good
 practice to define them in the Ansible inventory ``all`` group (usually
-:file:`ansible/inventory/group_vars/all/pki.yml`) for consistency between different
+:file:`ansible/inventory/group_vars/debops_all_hosts/pki.yml`) for consistency between different
 remote hosts.
 
 Most of these variables are related to Certificate Authority operation, the
@@ -125,10 +125,14 @@ Renewing Certificates
 
 For renewing certificates, just
 
-1. remove file:`/etc/pki/realms/<realm>/` from the remote host and
+1. remove :file:`/etc/pki/realms/<realm>/` from the remote host and
 2. re-run debops.pki against it, e.g. this::
 
-     debops service/pki  --limit=$REMOTE_HOST
+     debops run service/pki  --limit=$REMOTE_HOST
 
 This will create a new key for the remote host.
 If you use external keys, they will be preserved
+
+.. note::
+   You can use ``ansible-console`` to delete the file on multiple
+   hosts at once.
